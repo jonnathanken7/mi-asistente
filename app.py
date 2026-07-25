@@ -46,8 +46,7 @@ saldo_actual = st.number_input(
 )
 
 stake_recomendado = round(saldo_actual * 0.20, 2)
-st.info(f"💡 **Gestión de Riesgo:** Para un saldo de **${saldo_actual:.2f}**, tu monto máximo sugerido por jugada (20%) es de **${stake_recomendado:.2f}**")
-
+st.info(f"💡 Gestión de Riesgo: Para un saldo de ${saldo_actual:.2f}, tu monto máximo sugerido por jugada (20%) es de ${stake_recomendado:.2f}")
 st.divider()
 
 # --- MÓDULO DE LOS 3 DEPORTES ---

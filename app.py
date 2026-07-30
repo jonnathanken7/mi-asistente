@@ -211,8 +211,7 @@ else:
     tab_futbol, tab_basquet, tab_tenis = st.tabs(["⚽ Fútbol", "🏀 Básquet", "🎾 Tenis"])
 
     with tab_futbol:
-        st.markdown('<div class="custom-card">', unsafe_allow_html=True)
-        st.markdown("### ⚽ Modelo de Fútbol")
+        st.markdown('### ⚽ Modelo de Fútbol')
         st.write("**Evaluación:** 7 Filtros Cuantitativos + Control de Banca")
         st.write("")
         
@@ -234,25 +233,19 @@ else:
             
             evaluar_partido(partido_ejemplo, monto_sugerido)
 
-        st.markdown('</div>', unsafe_allow_html=True)
-
     with tab_basquet:
-        st.markdown('<div class="custom-card">', unsafe_allow_html=True)
-        st.markdown("### 🏀 Modelo de Básquetbol")
+        st.markdown('### 🏀 Modelo de Básquetbol')
         st.write("**Fórmulas:** NetRating (Eficiencia Ofensiva vs Defensiva)")
         st.write("")
         if st.button("🔍 Analizar Partidos de Básquet", key="btn_basquet"):
             st.info("⚙️ Conectando datos de la NBA...")
-        st.markdown('</div>', unsafe_allow_html=True)
 
     with tab_tenis:
-        st.markdown('<div class="custom-card">', unsafe_allow_html=True)
-        st.markdown("### 🎾 Modelo de Tenis")
+        st.markdown('### 🎾 Modelo de Tenis')
         st.write("**Fórmulas:** Dominance Rating en Superficie Específica")
         st.write("")
         if st.button("🔍 Analizar Partidos de Tenis", key="btn_tenis"):
             st.info("⚙️ Conectando datos de la ATP/WTA...")
-        st.markdown('</div>', unsafe_allow_html=True)
 
     st.write("")
     if st.button("🔒 Cerrar Sesión / Bloquear App", key="btn_logout"):

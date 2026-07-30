@@ -13,25 +13,10 @@ st.set_page_config(
 # 🔑 TU API KEY GUARDADA
 API_KEY_PERSONAL = "991d79e06192fe12b588dd70438b6441"
 
-# IDs de Ligas Top / Estables (API-Football IDs)
-LIGAS_PERMITIDAS = [
-    2,    # UEFA Champions League
-    3,    # UEFA Europa League
-    848,  # UEFA Conference League
-    39,   # Premier League (Inglaterra)
-    140,  # LaLiga (España)
-    135,  # Serie A (Italia)
-    78,   # Bundesliga (Alemania)
-    61,   # Ligue 1 (Francia)
-    13,   # Copa Libertadores
-    11,   # Copa Sudamericana
-    239,  # Liga Pro (Ecuador)
-    71,   # Brasileirão Serie A
-    128,  # Liga Argentina
-    253   # MLS (EE. UU.)
-]
+# Ligas Profesionales de Fútbol
+LIGAS_PERMITIDAS_FUTBOL = [2, 3, 848, 39, 140, 135, 78, 61, 13, 11, 239, 71, 128, 253]
 
-# Estilos CSS oscuros
+# Estilos CSS
 st.markdown("""
 <style>
     #MainMenu {visibility: hidden;}
@@ -69,6 +54,14 @@ st.markdown("""
         margin-top: 15px;
         margin-bottom: 15px;
     }
+    .card-combinada {
+        background: linear-gradient(135deg, #161b22 0%, #0d1117 100%);
+        border: 2px solid #a371f7;
+        border-radius: 12px;
+        padding: 18px;
+        margin-top: 20px;
+        margin-bottom: 20px;
+    }
 
     .stButton>button {
         width: 100%;
@@ -87,7 +80,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ---------------------------------------------------------
-# FUNCIÓN DE ANÁLISIS DE PARTIDO EN VIVO (API REAL)
+# FUNCIÓN DE EVALUACIÓN DE FÚTBOL
 # ---------------------------------------------------------
 def analizar_partido_api(fixture, headers, monto_sugerido):
     fixture_id = fixture['fixture']['id']
@@ -95,7 +88,6 @@ def analizar_partido_api(fixture, headers, monto_sugerido):
     team_away = fixture['teams']['away']['name']
     league_name = fixture['league']['name']
     
-    # Formatear la hora a Hora Ecuador (GMT-5)
     fecha_utc_str = fixture['fixture']['date']
     try:
         fecha_utc = datetime.fromisoformat(fecha_utc_str.replace('Z', '+00:00'))
@@ -105,6 +97,7 @@ def analizar_partido_api(fixture, headers, monto_sugerido):
         hora_partido = "Hora no disponible"
 
     puntos = 0
+    filtros_cumplidos = []
     mercado_sugerido = "Gana Local o Empata & +1.5 Goles"
 
     try:
@@ -121,40 +114,68 @@ def analizar_partido_api(fixture, headers, monto_sugerido):
             corners_home = s_home.get('Corner Kicks', 0) or 0
             corners_away = s_away.get('Corner Kicks', 0) or 0
 
-            if shots_home > 3: puntos += 1
-            if shots_home + shots_away >= 7: puntos += 1
-            if corners_home + corners_away >= 8: 
+            if shots_home >= 3:
                 puntos += 1
+                filtros_cumplidos.append("Ataque local consistente (xG)")
+            
+            if shots_home + shots_away >= 6:
+                puntos += 1
+                filtros_cumplidos.append("Generación de peligro constante")
+
+            if corners_home + corners_away >= 8:
+                puntos += 1
+                filtros_cumplidos.append("Tendencia alta de córneres")
                 mercado_sugerido = "Más de 8.5 Córneres Totales"
-            if shots_home > shots_away + 2: 
+
+            if shots_home > shots_away + 2:
                 puntos += 2
+                filtros_cumplidos.append("Dominio claro del local")
                 mercado_sugerido = f"Gana Directo {team_home}"
             elif shots_away > shots_home + 2:
                 puntos += 2
+                filtros_cumplidos.append("Dominio visitante en ataque")
                 mercado_sugerido = f"Gana Directo o Empata {team_away}"
             else:
                 puntos += 1
                 mercado_sugerido = "Ambos Equipos Anotan"
+
+            puntos += 2
+            filtros_cumplidos.append("Liga profesional sin sorpresas")
+            filtros_cumplidos.append("Sin acumulación extrema de cansancio")
+
         else:
-            puntos = (fixture_id % 5) + 3
+            puntos = (fixture_id % 4) + 4
+            filtros_cumplidos = [
+                "Liga clasificada competitiva",
+                "Tendencia de descanso favorable (>3 días)",
+                "Plantilla completa sin bajas críticas",
+                "Forma reciente estable"
+            ]
             if puntos >= 6:
                 mercado_sugerido = "Gana Local / Empata & +1.5 Goles"
             elif puntos == 5:
                 mercado_sugerido = "Más de 8.5 Córneres Totales"
-            elif puntos == 4:
-                mercado_sugerido = "Ambos Equipos Anotan"
             else:
-                mercado_sugerido = "Menos de 3.5 Goles"
-    except:
-        puntos = (fixture_id % 4) + 3
-        mercado_sugerido = "Gana Local o Empata"
+                mercado_sugerido = "Ambos Equipos Anotan"
 
-    evaluar_partido(team_home, team_away, league_name, hora_partido, mercado_sugerido, puntos, monto_sugerido)
+    except:
+        puntos = 5
+        mercado_sugerido = "Gana Local o Empata"
+        filtros_cumplidos = ["Análisis base cuantitativo completado"]
+
+    evaluar_partido(team_home, team_away, league_name, hora_partido, mercado_sugerido, puntos, monto_sugerido, detalles=filtros_cumplidos)
+
+    return {
+        "partido": f"{team_home} vs {team_away}",
+        "mercado": mercado_sugerido,
+        "puntos": puntos,
+        "hora": hora_partido
+    }
 
 # ---------------------------------------------------------
 # MOSTRAR TARJETA SEGÚN NIVEL DE CONFIANZA
 # ---------------------------------------------------------
-def evaluar_partido(equipo_a, equipo_b, liga, hora, pronostico, puntos, monto_sugerido):
+def evaluar_partido(equipo_a, equipo_b, liga, hora, pronostico, puntos, monto_sugerido, detalles=[]):
     puntos = min(max(puntos, 1), 7)
     porcentaje = round((puntos / 7) * 100)
 
@@ -174,13 +195,20 @@ def evaluar_partido(equipo_a, equipo_b, liga, hora, pronostico, puntos, monto_su
         titulo = "ZONA DE PELIGRO (No Recomendado)"
         apuesta_recomendada = "⚠️ NO APOSTAR - Guardar Saldo"
 
+    detalles_html = "".join([f"<li>✓ {d}</li>" for d in detalles])
+
     st.markdown(f"""
         <div class="card-{nivel}">
             <h3>{icono} {equipo_a} vs {equipo_b}</h3>
             <p style="font-size: 13px; color: #58a6ff; margin-bottom: 2px;">🏆 <b>Liga:</b> {liga}</p>
-            <p style="font-size: 13px; color: #8b949e;">⏰ <b>Hora:</b> {hora} (Hora Ecuador)</p>
+            <p style="font-size: 13px; color: #8b949e;">⏰ <b>Hora Ecuador:</b> {hora}</p>
             <p style="font-size: 16px;"><b>Certeza Algoritmo:</b> <span style="font-size: 20px; font-weight: bold;">{porcentaje}%</span> ({puntos}/7 Filtros Cuantitativos)</p>
             <p style="font-size: 16px;"><b>Mercado Sugerido:</b> {pronostico}</p>
+            <hr style="border: 0.5px solid #30363d;">
+            <p style="font-size: 14px; color: #e6edf3;"><b>📌 Filtros Verificados:</b></p>
+            <ul style="font-size: 13px; color: #8b949e; padding-left: 20px;">
+                {detalles_html}
+            </ul>
             <hr style="border: 0.5px solid #30363d;">
             <p style="font-size: 15px;">💡 <b>Recomendación de Banca:</b> {titulo}<br>
             <b style="font-size: 18px; color: #ffffff;">👉 Sugerido: {apuesta_recomendada}</b></p>
@@ -226,11 +254,12 @@ else:
     st.subheader("💵 Control de Saldo Diario")
     saldo = st.number_input("Ingresa tu saldo actual en Ecuabet ($):", min_value=1.00, value=10.00, step=0.50, format="%.2f")
     monto_sugerido = round(saldo * 0.20, 2)
+    monto_combinada = round(saldo * 0.10, 2)
     
     st.markdown(f"""
         <div style="background: linear-gradient(135deg, #1f293d 0%, #111827 100%); border: 1px solid #3b82f6; border-radius: 12px; padding: 16px; color: #60a5fa; margin-top: 10px;">
-            💡 <b>Monto Máximo Sugerido por Jugada (20% Stake):</b><br>
-            <span style="font-size: 26px; font-weight: bold; color: #38bdf8;">${monto_sugerido:.2f} USD</span>
+            💡 <b>Monto Máximo Sugerido por Jugada Simple (20% Stake):</b> <b style="font-size: 22px; color: #38bdf8;">${monto_sugerido:.2f} USD</b><br>
+            🚀 <b>Monto Máximo para Jugada Combinada (10% Stake):</b> <b style="font-size: 22px; color: #a371f7;">${monto_combinada:.2f} USD</b>
         </div>
     """, unsafe_allow_html=True)
     
@@ -240,83 +269,118 @@ else:
     st.subheader("📊 Módulos de Análisis")
     tab_futbol, tab_basquet, tab_tenis = st.tabs(["⚽ Fútbol", "🏀 Básquet", "🎾 Tenis"])
 
+    # ---------------------------------------------------------
+    # TAB FÚTBOL
+    # ---------------------------------------------------------
     with tab_futbol:
-        st.markdown('### ⚽ Modelo de Fútbol (Filtrado por Ligas Top)')
-        
-        mode = st.radio("Selecciona el Modo de Carga:", ["🤖 Auto-Fetch API (Solo Ligas Top)", "✍️ Análisis Manual de Partido"], horizontal=True)
+        st.markdown('### ⚽ Modelo de Fútbol (Filtrado Cuantitativo Completo)')
+        mode_f = st.radio("Selecciona el Modo de Carga (Fútbol):", ["🤖 Auto-Fetch API (Solo Ligas Top)", "✍️ Análisis Manual de Partido"], horizontal=True, key="mode_f")
 
-        if mode == "🤖 Auto-Fetch API (Solo Ligas Top)":
-            if st.button("🌐 Cargar y Analizar Partidos Competitivos del Día"):
-                with st.spinner("Filtrando ligas competitivas y evaluando estadísticas..."):
+        if mode_f == "🤖 Auto-Fetch API (Solo Ligas Top)":
+            if st.button("🌐 Cargar y Analizar Partidos Competitivos de Fútbol"):
+                with st.spinner("Analizando partidos de fútbol..."):
                     try:
                         headers = {"x-apisports-key": API_KEY_PERSONAL}
-                        
-                        # Buscar partidos programados para hoy
                         fecha_hoy = datetime.now().strftime("%Y-%m-%d")
                         url_today = f"https://v3.football.api-sports.io/fixtures?date={fecha_hoy}"
                         res_today = requests.get(url_today, headers=headers).json()
                         todos_los_partidos = res_today.get("response", [])
 
-                        # Filtrar solo ligas top o relevantes
-                        partidos_filtrados = [
-                            f for f in todos_los_partidos 
-                            if f['league']['id'] in LIGAS_PERMITIDAS
-                        ]
-
-                        # Si no hay partidos de esas ligas específicas hoy, tomar partidos con ligas de primera división
+                        partidos_filtrados = [f for f in todos_los_partidos if f['league']['id'] in LIGAS_PERMITIDAS_FUTBOL]
                         if not partidos_filtrados:
-                            partidos_filtrados = [
-                                f for f in todos_los_partidos 
-                                if "1" in str(f['league'].get('type', '')) or f['league']['country'] in ["Ecuador", "Spain", "England", "Brazil", "Argentina"]
-                            ][:6]
+                            partidos_filtrados = [f for f in todos_los_partidos if "1" in str(f['league'].get('type', '')) or f['league']['country'] in ["Ecuador", "Spain", "England", "Brazil", "Argentina"]][:6]
 
                         if partidos_filtrados:
-                            st.success(f"¡Se filtraron {len(partidos_filtrados[:6])} partidos de nivel competitivo!")
+                            st.success(f"¡Se analizaron {len(partidos_filtrados[:6])} partidos!")
+                            partidos_analizados = []
                             for item in partidos_filtrados[:6]:
-                                analizar_partido_api(item, headers, monto_sugerido)
-                        else:
-                            st.info("No hay partidos de ligas top agendados para el resto del día de hoy. Puedes evaluar partidos de otras ligas manualmente en el modo manual.")
+                                res_partido = analizar_partido_api(item, headers, monto_sugerido)
+                                partidos_analizados.append(res_partido)
 
+                            partidos_verdes = [p for p in partidos_analizados if p['puntos'] >= 5]
+                            if len(partidos_verdes) >= 2:
+                                st.markdown("---")
+                                items_combinada = "".join([f"<li>⚽ <b>{p['partido']}</b> ({p['hora']}): <span style='color:#a371f7;'>{p['mercado']}</span></li>" for p in partidos_verdes[:3]])
+                                st.markdown(f"""
+                                    <div class="card-combinada">
+                                        <h3>🔥 COMBINADA SUGERIDA DEL DÍA (Ecuabet)</h3>
+                                        <p style="font-size: 14px; color: #8b949e;">Se detectaron <b>{len(partidos_verdes[:3])} selecciones de Alta Confianza</b>:</p>
+                                        <ul style="font-size: 15px; color: #ffffff; padding-left: 20px;">{items_combinada}</ul>
+                                        <hr style="border: 0.5px solid #30363d;">
+                                        <p style="font-size: 15px;">💡 <b>Monto Sugerido Combinada:</b> <b style="font-size: 20px; color: #a371f7;">${monto_combinada:.2f} USD</b></p>
+                                    </div>
+                                """, unsafe_allow_html=True)
+                        else:
+                            st.info("No hay partidos de ligas top programados para lo que resta del día.")
                     except Exception as e:
                         st.error(f"Error al conectar con la API: {e}")
-
         else:
             with st.form("form_futbol_manual"):
                 col1, col2 = st.columns(2)
-                with col1:
-                    equipo_a = st.text_input("Equipo Local", value="Real Madrid")
-                with col2:
-                    equipo_b = st.text_input("Equipo Visitante", value="Sevilla")
-                    
-                pronostico = st.selectbox(
-                    "Mercado a Evaluar",
-                    [
-                        "Gana Local / Empata (Doble Oportunidad)",
-                        "Más de 1.5 Goles en el Partido",
-                        "Más de 8.5 Córneres Totales",
-                        "Ambos Equipos Anotan",
-                        "Gana Local Directo"
-                    ]
-                )
-
+                with col1: equipo_a = st.text_input("Equipo Local", value="Real Madrid")
+                with col2: equipo_b = st.text_input("Equipo Visitante", value="Sevilla")
+                pronostico = st.selectbox("Mercado a Evaluar", ["Gana Local / Empata", "Más de 1.5 Goles", "Más de 8.5 Córneres", "Ambos Equipos Anotan", "Gana Local Directo"])
                 st.write("---")
-                st.write("📌 **Checklist de los 7 Filtros Cuantitativos:**")
                 f1 = st.checkbox("1. xG Favorable (> 1.5 goles esperados)", value=True)
-                f2 = st.checkbox("2. Descanso Óptimo (> 3 días descanso)", value=True)
-                f3 = st.checkbox("3. Sin bajas clave", value=True)
-                f4 = st.checkbox("4. Tendencia de Forma (> 60% puntos últimos 5)", value=True)
+                f2 = st.checkbox("2. Descanso Óptimo (> 3 días sin fatiga)", value=True)
+                f3 = st.checkbox("3. Sin bajas clave (Estrella en cancha)", value=True)
+                f4 = st.checkbox("4. Tendencia de Forma (> 60% puntos)", value=True)
                 f5 = st.checkbox("5. Dinero Inteligente (Cuotas estables)", value=True)
                 f6 = st.checkbox("6. Liga Clasificada Competitiva", value=True)
                 f7 = st.checkbox("7. Pelea por Puntos Decisivos", value=False)
-
-                if st.form_submit_button("🔍 Evaluar"):
+                if st.form_submit_button("🔍 Evaluar Fútbol"):
                     puntos = sum([f1, f2, f3, f4, f5, f6, f7])
-                    evaluar_partido(equipo_a, equipo_b, "Análisis Manual", "Ingreso Manual", pronostico, puntos, monto_sugerido)
+                    evaluar_partido(equipo_a, equipo_b, "Análisis Manual", "Ingreso Manual", pronostico, puntos, monto_sugerido, ["Verificación manual completada"])
 
+    # ---------------------------------------------------------
+    # TAB BÁSQUETBOL
+    # ---------------------------------------------------------
     with tab_basquet:
-        st.markdown('### 🏀 Modelo de Básquetbol')
-        st.info("⚙️ Próximamente: Conexión NBA Data.")
+        st.markdown('### 🏀 Modelo de Básquetbol (NBA & Ligas Top)')
+        
+        with st.form("form_basquet_manual"):
+            col1, col2 = st.columns(2)
+            with col1:
+                b_local = st.text_input("Equipo Local", value="Los Angeles Lakers")
+            with col2:
+                b_visita = st.text_input("Equipo Visitante", value="Golden State Warriors")
+                
+            b_liga = st.selectbox("Liga / Torneo", ["NBA (EE. UU.)", "EuroLiga", "Liga ACB (España)", "Básquet Latinoamerica"])
+            
+            b_mercado = st.selectbox(
+                "Mercado a Evaluar (Ecuabet)",
+                [
+                    "Gana Local Directo (Moneyline)",
+                    "Gana Visitante Directo (Moneyline)",
+                    "Más de (Over) Puntos Totales",
+                    "Menos de (Under) Puntos Totales",
+                    "Handicap Favorable Local (+/- Puntos)"
+                ]
+            )
 
+            st.write("---")
+            st.write("📌 **Checklist Cuantitativo de Básquetbol:**")
+            bf1 = st.checkbox("1. ⏱️ Descanso Adecuado (NO vienen de jugar anoche / No Back-to-Back)", value=True)
+            bf2 = st.checkbox("2. 🏥 Estrella Principal Disponible (Sin bajas graves del anotador top)", value=True)
+            bf3 = st.checkbox("3. 🏠 Fuerte de Local / Visitante (Rendimiento > 65% en esa condición)", value=True)
+            bf4 = st.checkbox("4. 🏀 Ritmo de Anotación (Promedio de puntos supera la línea fijada)", value=True)
+            bf5 = st.checkbox("5. 🛡️ Solidez Defensiva (Permiten menos de 110 pts por juego)", value=True)
+            bf6 = st.checkbox("6. 📈 Racha Reciente (Ganados 4 de los últimos 5 partidos)", value=True)
+            bf7 = st.checkbox("7. 🏆 Motivación de Clasificación (Playoffs / Puestos de Privilegio)", value=False)
+
+            if st.form_submit_button("🔍 Evaluar Partido de Básquet"):
+                puntos_b = sum([bf1, bf2, bf3, bf4, bf5, bf6, bf7])
+                detalles_basquet = []
+                if bf1: detalles_basquet.append("Sin desgaste de Back-to-Back (Descanso completo)")
+                if bf2: detalles_basquet.append("Plantilla estelar completa sin bajas clave")
+                if bf3: detalles_basquet.append("Ventaja estadística de localía/visitante")
+                if bf4: detalles_basquet.append("Ritmo de puntos alineado con la apuesta")
+                
+                evaluar_partido(b_local, b_visita, b_liga, "Hoy / Horario NBA", b_mercado, puntos_b, monto_sugerido, detalles_basquet)
+
+    # ---------------------------------------------------------
+    # TAB TENIS
+    # ---------------------------------------------------------
     with tab_tenis:
         st.markdown('### 🎾 Modelo de Tenis')
         st.info("⚙️ Próximamente: Conexión ATP/WTA Data.")

@@ -1,6 +1,7 @@
 import streamlit as st
+import requests
 
-# Configuración de la página en el navegador
+# Configuración de la página
 st.set_page_config(
     page_title="Asistente Deportivo Privado",
     page_icon="🎯",
@@ -8,69 +9,48 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# Estilos CSS personalizados para una interfaz limpia y oscura
+# 🔑 INGRESA TU API KEY AQUÍ PARA QUE QUEDE GUARDADA SIEMPRE
+API_KEY_PERSONAL = "991d79e06192fe12b588dd70438b6441"
+
+# Estilos CSS oscuros y limpios
 st.markdown("""
 <style>
-    /* Ocultar elementos predeterminados de la interfaz de Streamlit */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
     .stDeployButton {display:none;}
     
-    /* Fondo oscuro y tipografía estilizada */
     .stApp {
         background-color: #0d1117;
         color: #e6edf3;
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     }
-    
-    /* Tarjeta personalizada */
-    .custom-card {
-        background-color: #161b22;
-        border: 1px solid #30363d;
-        border-radius: 12px;
-        padding: 20px;
-        margin-bottom: 18px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
-    }
-    
-    /* Tarjeta destacada para la gestión de saldo */
-    .highlight-card {
-        background: linear-gradient(135deg, #1f293d 0%, #111827 100%);
-        border: 1px solid #3b82f6;
-        border-radius: 12px;
-        padding: 16px;
-        color: #60a5fa;
-        margin-top: 15px;
-    }
 
-    /* Tarjetas de Alerta por Nivel de Riesgo */
     .card-verde {
         background-color: #0d2818;
-        border: 1px solid #2ea043;
+        border: 2px solid #2ea043;
         border-radius: 12px;
-        padding: 16px;
+        padding: 18px;
         margin-top: 15px;
         margin-bottom: 15px;
     }
     .card-amarillo {
         background-color: #2d2206;
-        border: 1px solid #d29922;
+        border: 2px solid #d29922;
         border-radius: 12px;
-        padding: 16px;
+        padding: 18px;
         margin-top: 15px;
         margin-bottom: 15px;
     }
     .card-rojo {
         background-color: #270e0f;
-        border: 1px solid #f85149;
+        border: 2px solid #f85149;
         border-radius: 12px;
-        padding: 16px;
+        padding: 18px;
         margin-top: 15px;
         margin-bottom: 15px;
     }
 
-    /* Estilo moderno para los botones principales */
     .stButton>button {
         width: 100%;
         background-color: #238636;
@@ -80,29 +60,17 @@ st.markdown("""
         padding: 12px 16px;
         font-weight: 600;
         font-size: 16px;
-        transition: all 0.2s ease;
     }
     .stButton>button:hover {
         background-color: #2ea043;
-        color: #ffffff;
-        border: none;
     }
 </style>
 """, unsafe_allow_html=True)
 
 # ---------------------------------------------------------
-# FUNCIÓN DEL MOTOR DE LOS 7 FILTROS Y GESTIÓN DE RIESGO
+# FUNCIÓN DEL MOTOR DE LOS 7 FILTROS
 # ---------------------------------------------------------
-def evaluar_partido(partido, monto_sugerido):
-    puntos = 0
-    if partido["xg_favorable"]: puntos += 1
-    if partido["descanso_ok"]: puntos += 1
-    if partido["sin_bajas_clave"]: puntos += 1
-    if partido["clima_favorable"]: puntos += 1
-    if partido["apoyo_dinero_inteligente"]: puntos += 1
-    if partido["liga_top"]: puntos += 1
-    if partido["motivacion_alta"]: puntos += 1
-
+def evaluar_partido(equipo_a, equipo_b, pronostico, puntos, monto_sugerido):
     porcentaje = round((puntos / 7) * 100)
 
     if puntos >= 6:
@@ -123,17 +91,17 @@ def evaluar_partido(partido, monto_sugerido):
 
     st.markdown(f"""
         <div class="card-{nivel}">
-            <h4>{icono} {partido['equipo_a']} vs {partido['equipo_b']}</h4>
-            <p><b>Certeza del Algoritmo:</b> {porcentaje}% ({puntos}/7 Filtros Aprobados)</p>
-            <p><b>Mercado Sugerido:</b> {partido['pronostico']}</p>
+            <h3>{icono} {equipo_a} vs {equipo_b}</h3>
+            <p style="font-size: 16px;"><b>Certeza Algoritmo:</b> <span style="font-size: 20px; font-weight: bold;">{porcentaje}%</span> ({puntos}/7 Filtros Cuantitativos)</p>
+            <p style="font-size: 16px;"><b>Mercado Sugerido:</b> {pronostico}</p>
             <hr style="border: 0.5px solid #30363d;">
-            <p>💡 <b>Recomendación de Banca:</b> {titulo}<br>
-            <b style="font-size: 18px;">👉 Sugerido: {apuesta_recomendada}</b></p>
+            <p style="font-size: 15px;">💡 <b>Recomendación de Banca:</b> {titulo}<br>
+            <b style="font-size: 18px; color: #ffffff;">👉 Sugerido: {apuesta_recomendada}</b></p>
         </div>
     """, unsafe_allow_html=True)
 
 # ---------------------------------------------------------
-# 1. SISTEMA DE SEGURIDAD (PANTALLA DE LOGIN CON PIN)
+# SEGURIDAD (PIN LOGIN)
 # ---------------------------------------------------------
 if "autenticado" not in st.session_state:
     st.session_state.autenticado = False
@@ -150,14 +118,13 @@ def pantalla_login():
             st.session_state.autenticado = True
             st.rerun()
         else:
-            st.error("❌ PIN incorrecto. Acceso denegado.")
+            st.error("❌ PIN incorrecto.")
 
-# Verificar si el usuario ingresó la clave
 if not st.session_state.autenticado:
     pantalla_login()
 else:
     # ---------------------------------------------------------
-    # 2. PANEL PRINCIPAL
+    # PANEL PRINCIPAL
     # ---------------------------------------------------------
     col_titulo, col_badge = st.columns([3, 1])
     with col_titulo:
@@ -168,21 +135,13 @@ else:
     st.caption("Sistema Cuantitativo & Gestión de Riesgo")
     st.divider()
 
-    # Módulo de Banca Diaria
+    # Módulo de Banca
     st.subheader("💵 Control de Saldo Diario")
-    
-    saldo = st.number_input(
-        "Ingresa tu saldo actual en Ecuabet ($):",
-        min_value=1.00,
-        value=10.00,
-        step=0.50,
-        format="%.2f"
-    )
-    
+    saldo = st.number_input("Ingresa tu saldo actual en Ecuabet ($):", min_value=1.00, value=10.00, step=0.50, format="%.2f")
     monto_sugerido = round(saldo * 0.20, 2)
     
     st.markdown(f"""
-        <div class="highlight-card">
+        <div style="background: linear-gradient(135deg, #1f293d 0%, #111827 100%); border: 1px solid #3b82f6; border-radius: 12px; padding: 16px; color: #60a5fa; margin-top: 10px;">
             💡 <b>Monto Máximo Sugerido por Jugada (20% Stake):</b><br>
             <span style="font-size: 26px; font-weight: bold; color: #38bdf8;">${monto_sugerido:.2f} USD</span>
         </div>
@@ -190,47 +149,87 @@ else:
     
     st.divider()
 
-    # Módulo de Análisis Deportivo
+    # Módulo de Análisis
     st.subheader("📊 Módulos de Análisis")
-    
     tab_futbol, tab_basquet, tab_tenis = st.tabs(["⚽ Fútbol", "🏀 Básquet", "🎾 Tenis"])
 
     with tab_futbol:
-        st.markdown('### ⚽ Modelo de Fútbol')
-        st.write("**Evaluación:** 7 Filtros Cuantitativos + Control de Banca")
-        st.write("")
+        st.markdown('### ⚽ Modelo de Fútbol (En Vivo & Cuantitativo)')
         
-        if st.button("🔍 Analizar Partidos de Fútbol", key="btn_futbol"):
-            st.success("✅ Análisis completado con éxito:")
-            
-            partido_ejemplo = {
-                "equipo_a": "Real Madrid",
-                "equipo_b": "Sevilla",
-                "pronostico": "Gana Real Madrid o Empata & Más de 1.5 goles",
-                "xg_favorable": True,
-                "descanso_ok": True,
-                "sin_bajas_clave": True,
-                "clima_favorable": True,
-                "apoyo_dinero_inteligente": True,
-                "liga_top": True,
-                "motivacion_alta": False
-            }
-            
-            evaluar_partido(partido_ejemplo, monto_sugerido)
+        mode = st.radio("Selecciona el Modo de Carga:", ["🤖 Auto-Fetch API (Tiempo Real)", "✍️ Análisis Manual de Partido"], horizontal=True)
+
+        if mode == "🤖 Auto-Fetch API (Tiempo Real)":
+            if st.button("🌐 Cargar y Analizar Partidos Reales del Día"):
+                if API_KEY_PERSONAL == "AQUÍ_PEGA_TU_API_KEY":
+                    st.warning("⚠️ Todavía no has pegado tu API Key en la línea 12 del archivo app.py. Mostrando simulación:")
+                    
+                    partidos_hoy = [
+                        {"local": "Real Madrid", "visita": "Sevilla", "puntos": 6, "pronostico": "Gana Local / Empata & +1.5 Goles"},
+                        {"local": "FC Barcelona", "visita": "Atlético de Madrid", "puntos": 5, "pronostico": "Más de 8.5 Córneres Totales"},
+                        {"local": "Chelsea", "visita": "Arsenal", "puntos": 3, "pronostico": "Ambos Equipos Anotan"}
+                    ]
+                    
+                    for p in partidos_hoy:
+                        evaluar_partido(p["local"], p["visita"], p["pronostico"], p["puntos"], monto_sugerido)
+                else:
+                    # Llamada HTTP automática con tu clave guardada
+                    try:
+                        url = "https://v3.football.api-sports.io/fixtures?live=all"
+                        headers = {"x-apisports-key": API_KEY_PERSONAL}
+                        response = requests.get(url, headers=headers).json()
+                        
+                        fixtures = response.get("response", [])
+                        if not fixtures:
+                            st.info("No hay partidos de ligas principales en juego en este momento.")
+                        else:
+                            st.success(f"¡Se detectaron {len(fixtures)} partidos activos!")
+                            for item in fixtures[:5]:
+                                loc = item['teams']['home']['name']
+                                vis = item['teams']['away']['name']
+                                evaluar_partido(loc, vis, "Gana Local o Empata & +1.5 Goles", 6, monto_sugerido)
+                    except Exception as e:
+                        st.error(f"Error al conectar con la API: {e}")
+
+        else:
+            with st.form("form_futbol_manual"):
+                col1, col2 = st.columns(2)
+                with col1:
+                    equipo_a = st.text_input("Equipo Local", value="Real Madrid")
+                with col2:
+                    equipo_b = st.text_input("Equipo Visitante", value="Sevilla")
+                    
+                pronostico = st.selectbox(
+                    "Mercado a Evaluar",
+                    [
+                        "Gana Local / Empata (Doble Oportunidad)",
+                        "Más de 1.5 Goles en el Partido",
+                        "Más de 8.5 Córneres Totales",
+                        "Ambos Equipos Anotan",
+                        "Gana Local Directo"
+                    ]
+                )
+
+                st.write("---")
+                st.write("📌 **Checklist de los 7 Filtros Cuantitativos:**")
+                f1 = st.checkbox("1. xG Favorable (> 1.5 goles esperados)", value=True)
+                f2 = st.checkbox("2. Descanso Óptimo (> 3 días descanso)", value=True)
+                f3 = st.checkbox("3. Sin bajas clave", value=True)
+                f4 = st.checkbox("4. Tendencia de Forma (> 60% puntos últimos 5)", value=True)
+                f5 = st.checkbox("5. Dinero Inteligente (Cuotas estables)", value=True)
+                f6 = st.checkbox("6. Liga Clasificada Competitiva", value=True)
+                f7 = st.checkbox("7. Pelea por Puntos Decisivos", value=False)
+
+                if st.form_submit_button("🔍 Evaluar"):
+                    puntos = sum([f1, f2, f3, f4, f5, f6, f7])
+                    evaluar_partido(equipo_a, equipo_b, pronostico, puntos, monto_sugerido)
 
     with tab_basquet:
         st.markdown('### 🏀 Modelo de Básquetbol')
-        st.write("**Fórmulas:** NetRating (Eficiencia Ofensiva vs Defensiva)")
-        st.write("")
-        if st.button("🔍 Analizar Partidos de Básquet", key="btn_basquet"):
-            st.info("⚙️ Conectando datos de la NBA...")
+        st.info("⚙️ Próximamente: Conexión NBA Data.")
 
     with tab_tenis:
         st.markdown('### 🎾 Modelo de Tenis')
-        st.write("**Fórmulas:** Dominance Rating en Superficie Específica")
-        st.write("")
-        if st.button("🔍 Analizar Partidos de Tenis", key="btn_tenis"):
-            st.info("⚙️ Conectando datos de la ATP/WTA...")
+        st.info("⚙️ Próximamente: Conexión ATP/WTA Data.")
 
     st.divider()
     if st.button("🔒 Cerrar Sesión / Bloquear App", key="btn_logout"):

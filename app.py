@@ -8,23 +8,20 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# Estilos CSS personalizados para una interfaz móvil limpia, oscura y elegante
+# Estilos CSS personalizados
 st.markdown("""
 <style>
-    /* Ocultar elementos predeterminados de la interfaz de Streamlit */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
     .stDeployButton {display:none;}
     
-    /* Fondo oscuro y tipografía estilizada */
     .stApp {
         background-color: #0d1117;
         color: #e6edf3;
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     }
     
-    /* Tarjetas personalizadas con bordes sutiles */
     .custom-card {
         background-color: #161b22;
         border: 1px solid #30363d;
@@ -34,7 +31,6 @@ st.markdown("""
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
     }
     
-    /* Tarjeta destacada para la gestión de saldo */
     .highlight-card {
         background: linear-gradient(135deg, #1f293d 0%, #111827 100%);
         border: 1px solid #3b82f6;
@@ -44,12 +40,12 @@ st.markdown("""
         margin-top: 15px;
     }
 
-    /* Tarjetas de Alerta por Nivel de Riesgo */
     .card-verde {
         background-color: #0d2818;
         border: 1px solid #2ea043;
         border-radius: 12px;
         padding: 16px;
+        margin-top: 15px;
         margin-bottom: 15px;
     }
     .card-amarillo {
@@ -57,6 +53,7 @@ st.markdown("""
         border: 1px solid #d29922;
         border-radius: 12px;
         padding: 16px;
+        margin-top: 15px;
         margin-bottom: 15px;
     }
     .card-rojo {
@@ -64,10 +61,10 @@ st.markdown("""
         border: 1px solid #f85149;
         border-radius: 12px;
         padding: 16px;
+        margin-top: 15px;
         margin-bottom: 15px;
     }
 
-    /* Estilo moderno para los botones principales */
     .stButton>button {
         width: 100%;
         background-color: #238636;
@@ -85,7 +82,6 @@ st.markdown("""
         border: none;
     }
 
-    /* Títulos y distintivos */
     .app-title {
         font-size: 26px;
         font-weight: 800;
@@ -114,7 +110,6 @@ st.markdown("""
 # FUNCIÓN DEL MOTOR DE LOS 7 FILTROS Y GESTIÓN DE RIESGO
 # ---------------------------------------------------------
 def evaluar_partido(partido, monto_sugerido):
-    # Conteo de puntos según filtros aprobados (Máximo 7 puntos)
     puntos = 0
     if partido["xg_favorable"]: puntos += 1
     if partido["descanso_ok"]: puntos += 1
@@ -126,7 +121,6 @@ def evaluar_partido(partido, monto_sugerido):
 
     porcentaje = round((puntos / 7) * 100)
 
-    # Clasificación por Nivel de Riesgo
     if puntos >= 6:
         nivel = "verde"
         icono = "🟢"
@@ -143,7 +137,6 @@ def evaluar_partido(partido, monto_sugerido):
         titulo = "ZONA DE PELIGRO (No Recomendado)"
         apuesta_recomendada = "⚠️ NO APOSTAR - Guardar Saldo"
 
-    # Renderizar tarjeta en la pantalla
     st.markdown(f"""
         <div class="card-{nivel}">
             <h4>{icono} {partido['equipo_a']} vs {partido['equipo_b']}</h4>
@@ -155,9 +148,8 @@ def evaluar_partido(partido, monto_sugerido):
         </div>
     """, unsafe_allow_html=True)
 
-
 # ---------------------------------------------------------
-# 1. SISTEMA DE SEGURIDAD (PANTALLA DE LOGIN CON PIN)
+# SISTEMA DE SEGURIDAD (LOGIN CON PIN)
 # ---------------------------------------------------------
 if "autenticado" not in st.session_state:
     st.session_state.autenticado = False
@@ -178,13 +170,11 @@ def pantalla_login():
             st.error("❌ PIN incorrecto. Acceso denegado.")
     st.markdown('</div>', unsafe_allow_html=True)
 
-# Verificar si el usuario ingresó la clave
+# Verificar sesión
 if not st.session_state.autenticado:
     pantalla_login()
 else:
-    # ---------------------------------------------------------
-    # 2. PANEL PRINCIPAL (SOLO VISIBLE CON CLAVE CORRECTA)
-    # ---------------------------------------------------------
+    # PANEL PRINCIPAL
     st.markdown("""
         <div style="display: flex; justify-content: space-between; align-items: center;">
             <div class="app-title">🎯 Asistente Privado</div>
@@ -229,7 +219,6 @@ else:
         if st.button("🔍 Analizar Partidos de Fútbol", key="btn_futbol"):
             st.success("✅ Análisis completado con éxito:")
             
-            # EJEMPLO DE PARTIDO PROCESADO POR LOS 7 FILTROS
             partido_ejemplo = {
                 "equipo_a": "Real Madrid",
                 "equipo_b": "Sevilla",
@@ -240,10 +229,9 @@ else:
                 "clima_favorable": True,
                 "apoyo_dinero_inteligente": True,
                 "liga_top": True,
-                "motivacion_alta": False  # Aprobó 6 de 7 filtros
+                "motivacion_alta": False
             }
             
-            # Llamamos a la función de evaluación
             evaluar_partido(partido_ejemplo, monto_sugerido)
 
         st.markdown('</div>', unsafe_allow_html=True)
@@ -266,7 +254,6 @@ else:
             st.info("⚙️ Conectando datos de la ATP/WTA...")
         st.markdown('</div>', unsafe_allow_html=True)
 
-    # Botón discreto para cerrar sesión
     st.write("")
     if st.button("🔒 Cerrar Sesión / Bloquear App", key="btn_logout"):
         st.session_state.autenticado = False

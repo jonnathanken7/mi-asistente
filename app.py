@@ -372,7 +372,7 @@ else:
                     evaluar_partido(equipo_a, equipo_b, "Análisis Manual", "Ingreso Manual", pronostico, puntos, monto_sugerido, ["Verificación manual completada"])
 
     # ---------------------------------------------------------
-    # TAB BÁSQUETBOL (FILTRO EXCLUSIVO LIGAS MASCULINAS ÉLITE)
+    # TAB BÁSQUETBOL (SIN EJEMPLOS SIMULADOS)
     # ---------------------------------------------------------
     with tab_basquet:
         st.markdown('### 🏀 Modelo de Básquetbol (Solo Ligas Élite Masculinas: NBA / EuroLiga / ACB)')
@@ -380,7 +380,7 @@ else:
 
         if mode_b == "🤖 Auto-Fetch API (Exclusivo Ligas Top)":
             if st.button("🌐 Cargar y Analizar Partidos Élite de Básquet"):
-                with st.spinner("Filtrando solo NBA/EuroLiga Masculina..."):
+                with st.spinner("Buscando únicamente partidos oficiales de NBA / EuroLiga..."):
                     try:
                         headers_b = {"x-apisports-key": API_KEY_PERSONAL}
                         fecha_hoy = datetime.now().strftime("%Y-%m-%d")
@@ -389,7 +389,7 @@ else:
                         res_b = requests.get(url_b, headers=headers_b).json()
                         todos_juegos = res_b.get("response", [])
 
-                        # FILTRO ESTRICTO MASCULINO (Bloquea WNBA y Ligas Femeninas)
+                        # FILTRO ESTRICTO MASCULINO
                         juegos_top = []
                         for g in todos_juegos:
                             nombre_liga = g['league']['name'].upper()
@@ -397,17 +397,13 @@ else:
                                 juegos_top.append(g)
 
                         if juegos_top:
-                            st.success(f"¡Se encontraron {len(juegos_top)} partidos de LIGAS TOP Masculinas!")
+                            st.success(f"¡Se encontraron {len(juegos_top)} partidos oficiales de LIGAS TOP Masculinas!")
                             for game in juegos_top[:5]:
                                 analizar_partido_basquet_api(game, headers_b, monto_sugerido)
                         else:
-                            st.info("📌 La NBA Masculina y EuroLiga no tienen partidos hoy. Mostrando demostración NBA:")
-                            demo_games = [
-                                {"id": 101, "teams": {"home": {"name": "Boston Celtics"}, "away": {"name": "Miami Heat"}}, "league": {"name": "NBA"}, "date": f"{fecha_hoy}T20:00:00Z"},
-                                {"id": 102, "teams": {"home": {"name": "Golden State Warriors"}, "away": {"name": "Los Angeles Lakers"}}, "league": {"name": "NBA"}, "date": f"{fecha_hoy}T22:30:00Z"}
-                            ]
-                            for game in demo_games:
-                                analizar_partido_basquet_api(game, headers_b, monto_sugerido)
+                            # MUESTRA ÚNICAMENTE EL MENSAJE, SIN NINGÚN PARTIDO SIMULADO
+                            st.warning("⚠️ HOY NO HAY PARTIDOS PROGRAMADOS EN LAS LIGAS TOP (NBA MASCULINA / EUROLEAGUE).")
+                            st.info("👉 Se recomienda guardar el saldo y no apostar en ligas secundarias ni torneos de menor categoría.")
 
                     except Exception as e:
                         st.error(f"Error al conectar con la API de Básquetbol: {e}")

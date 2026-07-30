@@ -13,6 +13,24 @@ st.set_page_config(
 # 🔑 TU API KEY GUARDADA
 API_KEY_PERSONAL = "991d79e06192fe12b588dd70438b6441"
 
+# IDs de Ligas Top / Estables (API-Football IDs)
+LIGAS_PERMITIDAS = [
+    2,    # UEFA Champions League
+    3,    # UEFA Europa League
+    848,  # UEFA Conference League
+    39,   # Premier League (Inglaterra)
+    140,  # LaLiga (España)
+    135,  # Serie A (Italia)
+    78,   # Bundesliga (Alemania)
+    61,   # Ligue 1 (Francia)
+    13,   # Copa Libertadores
+    11,   # Copa Sudamericana
+    239,  # Liga Pro (Ecuador)
+    71,   # Brasileirão Serie A
+    128,  # Liga Argentina
+    253   # MLS (EE. UU.)
+]
+
 # Estilos CSS oscuros
 st.markdown("""
 <style>
@@ -75,8 +93,9 @@ def analizar_partido_api(fixture, headers, monto_sugerido):
     fixture_id = fixture['fixture']['id']
     team_home = fixture['teams']['home']['name']
     team_away = fixture['teams']['away']['name']
+    league_name = fixture['league']['name']
     
-    # Formatear la hora del partido a Hora Ecuador (GMT-5)
+    # Formatear la hora a Hora Ecuador (GMT-5)
     fecha_utc_str = fixture['fixture']['date']
     try:
         fecha_utc = datetime.fromisoformat(fecha_utc_str.replace('Z', '+00:00'))
@@ -88,7 +107,6 @@ def analizar_partido_api(fixture, headers, monto_sugerido):
     puntos = 0
     mercado_sugerido = "Gana Local o Empata & +1.5 Goles"
 
-    # Intentar obtener estadísticas de la API si están disponibles
     try:
         url_stats = f"https://v3.football.api-sports.io/fixtures/statistics?fixture={fixture_id}"
         res_stats = requests.get(url_stats, headers=headers).json()
@@ -131,13 +149,12 @@ def analizar_partido_api(fixture, headers, monto_sugerido):
         puntos = (fixture_id % 4) + 3
         mercado_sugerido = "Gana Local o Empata"
 
-    # Renderizar resultado con la hora incluida
-    evaluar_partido(team_home, team_away, hora_partido, mercado_sugerido, puntos, monto_sugerido)
+    evaluar_partido(team_home, team_away, league_name, hora_partido, mercado_sugerido, puntos, monto_sugerido)
 
 # ---------------------------------------------------------
 # MOSTRAR TARJETA SEGÚN NIVEL DE CONFIANZA
 # ---------------------------------------------------------
-def evaluar_partido(equipo_a, equipo_b, hora, pronostico, puntos, monto_sugerido):
+def evaluar_partido(equipo_a, equipo_b, liga, hora, pronostico, puntos, monto_sugerido):
     puntos = min(max(puntos, 1), 7)
     porcentaje = round((puntos / 7) * 100)
 
@@ -160,7 +177,8 @@ def evaluar_partido(equipo_a, equipo_b, hora, pronostico, puntos, monto_sugerido
     st.markdown(f"""
         <div class="card-{nivel}">
             <h3>{icono} {equipo_a} vs {equipo_b}</h3>
-            <p style="font-size: 14px; color: #8b949e;">⏰ <b>Hora del Partido:</b> {hora} (Hora Ecuador)</p>
+            <p style="font-size: 13px; color: #58a6ff; margin-bottom: 2px;">🏆 <b>Liga:</b> {liga}</p>
+            <p style="font-size: 13px; color: #8b949e;">⏰ <b>Hora:</b> {hora} (Hora Ecuador)</p>
             <p style="font-size: 16px;"><b>Certeza Algoritmo:</b> <span style="font-size: 20px; font-weight: bold;">{porcentaje}%</span> ({puntos}/7 Filtros Cuantitativos)</p>
             <p style="font-size: 16px;"><b>Mercado Sugerido:</b> {pronostico}</p>
             <hr style="border: 0.5px solid #30363d;">
@@ -223,33 +241,41 @@ else:
     tab_futbol, tab_basquet, tab_tenis = st.tabs(["⚽ Fútbol", "🏀 Básquet", "🎾 Tenis"])
 
     with tab_futbol:
-        st.markdown('### ⚽ Modelo de Fútbol (En Vivo & Cuantitativo)')
+        st.markdown('### ⚽ Modelo de Fútbol (Filtrado por Ligas Top)')
         
-        mode = st.radio("Selecciona el Modo de Carga:", ["🤖 Auto-Fetch API (Tiempo Real)", "✍️ Análisis Manual de Partido"], horizontal=True)
+        mode = st.radio("Selecciona el Modo de Carga:", ["🤖 Auto-Fetch API (Solo Ligas Top)", "✍️ Análisis Manual de Partido"], horizontal=True)
 
-        if mode == "🤖 Auto-Fetch API (Tiempo Real)":
-            if st.button("🌐 Cargar y Analizar Partidos Reales del Día"):
-                with st.spinner("Procesando estadísticas cuantitativas en tiempo real..."):
+        if mode == "🤖 Auto-Fetch API (Solo Ligas Top)":
+            if st.button("🌐 Cargar y Analizar Partidos Competitivos del Día"):
+                with st.spinner("Filtrando ligas competitivas y evaluando estadísticas..."):
                     try:
-                        # Buscar partidos en directo primero
-                        url_live = "https://v3.football.api-sports.io/fixtures?live=all"
                         headers = {"x-apisports-key": API_KEY_PERSONAL}
-                        response = requests.get(url_live, headers=headers).json()
-                        fixtures = response.get("response", [])
                         
-                        # Si no hay en vivo, buscar los programados del día
-                        if not fixtures:
-                            fecha_hoy = datetime.now().strftime("%Y-%m-%d")
-                            url_today = f"https://v3.football.api-sports.io/fixtures?date={fecha_hoy}"
-                            res_today = requests.get(url_today, headers=headers).json()
-                            fixtures = res_today.get("response", [])[:8]
+                        # Buscar partidos programados para hoy
+                        fecha_hoy = datetime.now().strftime("%Y-%m-%d")
+                        url_today = f"https://v3.football.api-sports.io/fixtures?date={fecha_hoy}"
+                        res_today = requests.get(url_today, headers=headers).json()
+                        todos_los_partidos = res_today.get("response", [])
 
-                        if fixtures:
-                            st.success(f"¡Se analizaron {len(fixtures[:8])} partidos del día!")
-                            for item in fixtures[:8]:
+                        # Filtrar solo ligas top o relevantes
+                        partidos_filtrados = [
+                            f for f in todos_los_partidos 
+                            if f['league']['id'] in LIGAS_PERMITIDAS
+                        ]
+
+                        # Si no hay partidos de esas ligas específicas hoy, tomar partidos con ligas de primera división
+                        if not partidos_filtrados:
+                            partidos_filtrados = [
+                                f for f in todos_los_partidos 
+                                if "1" in str(f['league'].get('type', '')) or f['league']['country'] in ["Ecuador", "Spain", "England", "Brazil", "Argentina"]
+                            ][:6]
+
+                        if partidos_filtrados:
+                            st.success(f"¡Se filtraron {len(partidos_filtrados[:6])} partidos de nivel competitivo!")
+                            for item in partidos_filtrados[:6]:
                                 analizar_partido_api(item, headers, monto_sugerido)
                         else:
-                            st.warning("No se encontraron partidos para evaluar el día de hoy.")
+                            st.info("No hay partidos de ligas top agendados para el resto del día de hoy. Puedes evaluar partidos de otras ligas manualmente en el modo manual.")
 
                     except Exception as e:
                         st.error(f"Error al conectar con la API: {e}")
@@ -285,7 +311,7 @@ else:
 
                 if st.form_submit_button("🔍 Evaluar"):
                     puntos = sum([f1, f2, f3, f4, f5, f6, f7])
-                    evaluar_partido(equipo_a, equipo_b, "Ingreso Manual", pronostico, puntos, monto_sugerido)
+                    evaluar_partido(equipo_a, equipo_b, "Análisis Manual", "Ingreso Manual", pronostico, puntos, monto_sugerido)
 
     with tab_basquet:
         st.markdown('### 🏀 Modelo de Básquetbol')

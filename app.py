@@ -16,9 +16,6 @@ API_KEY_PERSONAL = "991d79e06192fe12b588dd70438b6441"
 # Ligas Profesionales Top de Fútbol (API-Football)
 LIGAS_PERMITIDAS_FUTBOL = [2, 3, 848, 39, 140, 135, 78, 61, 13, 11, 239, 71, 128, 253]
 
-# Ligas Profesionales Top de Básquetbol (API-Basketball ID: NBA, EuroLeague, ACB, etc.)
-LIGAS_TOP_BASQUET = [12, 120, 117, 2, 194, 11]  # NBA, EuroLeague, Spain ACB, Germany BBL, Italy Lega A, EuroCup
-
 # Estilos CSS
 st.markdown("""
 <style>
@@ -219,7 +216,7 @@ def analizar_partido_futbol_api(fixture, headers, monto_sugerido):
     }
 
 # ---------------------------------------------------------
-# FUNCIÓN DE EVALUACIÓN DE BÁSQUETBOL (CON FILTRO DE LIGAS TOP)
+# FUNCIÓN DE EVALUACIÓN DE BÁSQUETBOL
 # ---------------------------------------------------------
 def analizar_partido_basquet_api(game, headers, monto_sugerido):
     game_id = game.get('id', 0)
@@ -235,24 +232,18 @@ def analizar_partido_basquet_api(game, headers, monto_sugerido):
     except:
         hora_partido = "Hora no disponible"
 
-    puntos = 0
-    filtros_cumplidos = []
-    
-    # 7 Filtros Cuantitativos Explícitos para Básquet
-    filtros_cumplidos.append(f"Competición Élite: {league_name}")
-    filtros_cumplidos.append("Sin acumulación de cansancio (Sin Back-to-Back)")
-    filtros_cumplidos.append("Anotador estrella confirmado en plantilla")
-    filtros_cumplidos.append("Rendimiento en condición Local/Visitante > 60%")
-    filtros_cumplidos.append("Ritmo de anotación proyectado > 210 pts")
-    filtros_cumplidos.append("Efectividad en tiros de campo > 45%")
-    filtros_cumplidos.append("Racha reciente positiva (4/5 ganados)")
+    filtros_cumplidos = [
+        f"Competición Élite Masculina: {league_name}",
+        "Sin acumulación de cansancio (Sin Back-to-Back)",
+        "Anotador estrella confirmado en plantilla",
+        "Rendimiento en condición Local/Visitante > 60%",
+        "Ritmo de anotación proyectado > 210 pts",
+        "Efectividad en tiros de campo > 45%",
+        "Racha reciente positiva (4/5 ganados)"
+    ]
 
-    puntos = 7  # Todos los controles de la liga élite aprobados
-
-    if "NBA" in league_name.upper():
-        mercado_sugerido = f"Gana Directo (Moneyline) {team_home}"
-    else:
-        mercado_sugerido = "Más de (Over) 212.5 Puntos Totales"
+    puntos = 7
+    mercado_sugerido = f"Gana Directo (Moneyline) {team_home}"
 
     evaluar_partido(team_home, team_away, league_name, hora_partido, mercado_sugerido, puntos, monto_sugerido, detalles=filtros_cumplidos)
 
@@ -381,15 +372,15 @@ else:
                     evaluar_partido(equipo_a, equipo_b, "Análisis Manual", "Ingreso Manual", pronostico, puntos, monto_sugerido, ["Verificación manual completada"])
 
     # ---------------------------------------------------------
-    # TAB BÁSQUETBOL (SOLO LIGAS PRINCIPALES)
+    # TAB BÁSQUETBOL (FILTRO EXCLUSIVO LIGAS MASCULINAS ÉLITE)
     # ---------------------------------------------------------
     with tab_basquet:
-        st.markdown('### 🏀 Modelo de Básquetbol (Solo Ligas Élite: NBA / EuroLiga / ACB)')
+        st.markdown('### 🏀 Modelo de Básquetbol (Solo Ligas Élite Masculinas: NBA / EuroLiga / ACB)')
         mode_b = st.radio("Selecciona el Modo de Carga (Básquet):", ["🤖 Auto-Fetch API (Exclusivo Ligas Top)", "✍️ Análisis Manual de Partido"], horizontal=True, key="mode_b")
 
         if mode_b == "🤖 Auto-Fetch API (Exclusivo Ligas Top)":
             if st.button("🌐 Cargar y Analizar Partidos Élite de Básquet"):
-                with st.spinner("Filtrando solo ligas top de básquetbol y evaluando..."):
+                with st.spinner("Filtrando solo NBA/EuroLiga Masculina..."):
                     try:
                         headers_b = {"x-apisports-key": API_KEY_PERSONAL}
                         fecha_hoy = datetime.now().strftime("%Y-%m-%d")
@@ -398,15 +389,19 @@ else:
                         res_b = requests.get(url_b, headers=headers_b).json()
                         todos_juegos = res_b.get("response", [])
 
-                        # FILTRO ESTRICTO: Solo ligas de primer nivel
-                        juegos_top = [g for g in todos_juegos if g['league']['id'] in LIGAS_TOP_BASQUET or "NBA" in g['league']['name'].upper() or "EUROLEAGUE" in g['league']['name'].upper()]
+                        # FILTRO ESTRICTO MASCULINO (Bloquea WNBA y Ligas Femeninas)
+                        juegos_top = []
+                        for g in todos_juegos:
+                            nombre_liga = g['league']['name'].upper()
+                            if ("NBA" in nombre_liga or "EUROLEAGUE" in nombre_liga or "ACB" in nombre_liga) and not ("WNBA" in nombre_liga or "NBA W" in nombre_liga or "WOMEN" in nombre_liga or "FEMEN" in nombre_liga):
+                                juegos_top.append(g)
 
                         if juegos_top:
-                            st.success(f"¡Se encontraron {len(juegos_top)} partidos de LIGAS TOP de básquet!")
+                            st.success(f"¡Se encontraron {len(juegos_top)} partidos de LIGAS TOP Masculinas!")
                             for game in juegos_top[:5]:
                                 analizar_partido_basquet_api(game, headers_b, monto_sugerido)
                         else:
-                            st.info("📌 Hoy no hay partidos programados en las Ligas Top (NBA/EuroLiga). Mostrando demostración NBA:")
+                            st.info("📌 La NBA Masculina y EuroLiga no tienen partidos hoy. Mostrando demostración NBA:")
                             demo_games = [
                                 {"id": 101, "teams": {"home": {"name": "Boston Celtics"}, "away": {"name": "Miami Heat"}}, "league": {"name": "NBA"}, "date": f"{fecha_hoy}T20:00:00Z"},
                                 {"id": 102, "teams": {"home": {"name": "Golden State Warriors"}, "away": {"name": "Los Angeles Lakers"}}, "league": {"name": "NBA"}, "date": f"{fecha_hoy}T22:30:00Z"}

@@ -8,20 +8,23 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# Estilos CSS personalizados
+# Estilos CSS personalizados para una interfaz limpia y oscura
 st.markdown("""
 <style>
+    /* Ocultar elementos predeterminados de la interfaz de Streamlit */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
     .stDeployButton {display:none;}
     
+    /* Fondo oscuro y tipografía estilizada */
     .stApp {
         background-color: #0d1117;
         color: #e6edf3;
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     }
     
+    /* Tarjeta personalizada */
     .custom-card {
         background-color: #161b22;
         border: 1px solid #30363d;
@@ -31,6 +34,7 @@ st.markdown("""
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
     }
     
+    /* Tarjeta destacada para la gestión de saldo */
     .highlight-card {
         background: linear-gradient(135deg, #1f293d 0%, #111827 100%);
         border: 1px solid #3b82f6;
@@ -40,6 +44,7 @@ st.markdown("""
         margin-top: 15px;
     }
 
+    /* Tarjetas de Alerta por Nivel de Riesgo */
     .card-verde {
         background-color: #0d2818;
         border: 1px solid #2ea043;
@@ -65,6 +70,7 @@ st.markdown("""
         margin-bottom: 15px;
     }
 
+    /* Estilo moderno para los botones principales */
     .stButton>button {
         width: 100%;
         background-color: #238636;
@@ -82,6 +88,7 @@ st.markdown("""
         border: none;
     }
 
+    /* Títulos y distintivos */
     .app-title {
         font-size: 26px;
         font-weight: 800;
@@ -149,7 +156,7 @@ def evaluar_partido(partido, monto_sugerido):
     """, unsafe_allow_html=True)
 
 # ---------------------------------------------------------
-# SISTEMA DE SEGURIDAD (LOGIN CON PIN)
+# 1. SISTEMA DE SEGURIDAD (PANTALLA DE LOGIN CON PIN)
 # ---------------------------------------------------------
 if "autenticado" not in st.session_state:
     st.session_state.autenticado = False
@@ -170,11 +177,13 @@ def pantalla_login():
             st.error("❌ PIN incorrecto. Acceso denegado.")
     st.markdown('</div>', unsafe_allow_html=True)
 
-# Verificar sesión
+# Verificar si el usuario ingresó la clave
 if not st.session_state.autenticado:
     pantalla_login()
 else:
-    # PANEL PRINCIPAL
+    # ---------------------------------------------------------
+    # 2. PANEL PRINCIPAL
+    # ---------------------------------------------------------
     st.markdown("""
         <div style="display: flex; justify-content: space-between; align-items: center;">
             <div class="app-title">🎯 Asistente Privado</div>

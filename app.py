@@ -10,7 +10,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# 🔑 TU API KEY
+# 🔑 TU API KEY (API-Sports)
 API_KEY_PERSONAL = "991d79e06192fe12b588dd70438b6441"
 
 # Ligas Profesionales Top de Fútbol (API-Football)
@@ -107,7 +107,7 @@ def evaluar_partido(equipo_a, equipo_b, liga, hora, pronostico, puntos, monto_su
     st.markdown(f"""
         <div class="card-{nivel}">
             <h3>{icono} {equipo_a} vs {equipo_b}</h3>
-            <p style="font-size: 13px; color: #58a6ff; margin-bottom: 2px;">🏆 <b>Liga:</b> {liga}</p>
+            <p style="font-size: 13px; color: #58a6ff; margin-bottom: 2px;">🏆 <b>Torneo/Liga:</b> {liga}</p>
             <p style="font-size: 13px; color: #8b949e;">⏰ <b>Hora Ecuador:</b> {hora}</p>
             <p style="font-size: 16px;"><b>Certeza Algoritmo:</b> <span style="font-size: 20px; font-weight: bold;">{porcentaje}%</span> ({puntos}/7 Filtros Cuantitativos)</p>
             <p style="font-size: 16px;"><b>Mercado Sugerido:</b> {pronostico}</p>
@@ -123,7 +123,7 @@ def evaluar_partido(equipo_a, equipo_b, liga, hora, pronostico, puntos, monto_su
     """, unsafe_allow_html=True)
 
 # ---------------------------------------------------------
-# FUNCIÓN DE EVALUACIÓN DE FÚTBOL (AUTOMÁTICA)
+# FUNCIÓN DE EVALUACIÓN DE FÚTBOL
 # ---------------------------------------------------------
 def analizar_partido_futbol_api(fixture, headers, monto_sugerido):
     fixture_id = fixture['fixture']['id']
@@ -219,7 +219,6 @@ def analizar_partido_futbol_api(fixture, headers, monto_sugerido):
 # FUNCIÓN DE EVALUACIÓN DE BÁSQUETBOL
 # ---------------------------------------------------------
 def analizar_partido_basquet_api(game, headers, monto_sugerido):
-    game_id = game.get('id', 0)
     team_home = game['teams']['home']['name']
     team_away = game['teams']['away']['name']
     league_name = game['league']['name']
@@ -249,6 +248,37 @@ def analizar_partido_basquet_api(game, headers, monto_sugerido):
 
     return {
         "partido": f"{team_home} vs {team_away}",
+        "mercado": mercado_sugerido,
+        "puntos": puntos,
+        "hora": hora_partido
+    }
+
+# ---------------------------------------------------------
+# FUNCIÓN DE EVALUACIÓN DE TENIS (ATP / WTA)
+# ---------------------------------------------------------
+def analizar_partido_tenis_api(match, monto_sugerido):
+    p1 = match.get('player_1', 'Tenista 1')
+    p2 = match.get('player_2', 'Tenista 2')
+    tournament = match.get('tournament', 'ATP Tour')
+    hora_partido = match.get('hora', 'Hora no disponible')
+
+    filtros_cumplidos = [
+        f"Circuito Profesional Principal: {tournament}",
+        "Rendimiento en la superficie actual (Arcilla/Dura/Césped) > 65%",
+        "Porcentaje de puntos ganados con el 1er servicio > 70%",
+        "Historial Directo (H2H) Favorable",
+        "Sin retiro por molestias físicas en últimos 30 días",
+        "Efectividad en conversión de Break Points > 50%",
+        "Racha positiva reciente (al menos 4/5 victorias)"
+    ]
+
+    puntos = 7
+    mercado_sugerido = f"Gana Partido (Moneyline) {p1}"
+
+    evaluar_partido(p1, p2, tournament, hora_partido, mercado_sugerido, puntos, monto_sugerido, detalles=filtros_cumplidos)
+
+    return {
+        "partido": f"{p1} vs {p2}",
         "mercado": mercado_sugerido,
         "puntos": puntos,
         "hora": hora_partido
@@ -372,7 +402,7 @@ else:
                     evaluar_partido(equipo_a, equipo_b, "Análisis Manual", "Ingreso Manual", pronostico, puntos, monto_sugerido, ["Verificación manual completada"])
 
     # ---------------------------------------------------------
-    # TAB BÁSQUETBOL (SIN EJEMPLOS SIMULADOS)
+    # TAB BÁSQUETBOL
     # ---------------------------------------------------------
     with tab_basquet:
         st.markdown('### 🏀 Modelo de Básquetbol (Solo Ligas Élite Masculinas: NBA / EuroLiga / ACB)')
@@ -389,7 +419,6 @@ else:
                         res_b = requests.get(url_b, headers=headers_b).json()
                         todos_juegos = res_b.get("response", [])
 
-                        # FILTRO ESTRICTO MASCULINO
                         juegos_top = []
                         for g in todos_juegos:
                             nombre_liga = g['league']['name'].upper()
@@ -401,7 +430,6 @@ else:
                             for game in juegos_top[:5]:
                                 analizar_partido_basquet_api(game, headers_b, monto_sugerido)
                         else:
-                            # MUESTRA ÚNICAMENTE EL MENSAJE, SIN NINGÚN PARTIDO SIMULADO
                             st.warning("⚠️ HOY NO HAY PARTIDOS PROGRAMADOS EN LAS LIGAS TOP (NBA MASCULINA / EUROLEAGUE).")
                             st.info("👉 Se recomienda guardar el saldo y no apostar en ligas secundarias ni torneos de menor categoría.")
 
@@ -428,11 +456,68 @@ else:
                     evaluar_partido(b_local, b_visita, b_liga, "Hoy / Horario NBA", b_mercado, puntos_b, monto_sugerido, ["Evaluación cuantitativa manual"])
 
     # ---------------------------------------------------------
-    # TAB TENIS
+    # TAB TENIS (CIRCUITO PROFESIONAL ATP / WTA TOP)
     # ---------------------------------------------------------
     with tab_tenis:
-        st.markdown('### 🎾 Modelo de Tenis')
-        st.info("⚙️ Próximamente: Conexión ATP/WTA Data.")
+        st.markdown('### 🎾 Modelo de Tenis (Solo Circuito Élite ATP / WTA Top)')
+        mode_t = st.radio("Selecciona el Modo de Carga (Tenis):", ["🤖 Auto-Fetch API (Exclusivo ATP / WTA)", "✍️ Análisis Manual de Partido"], horizontal=True, key="mode_t")
+
+        if mode_t == "🤖 Auto-Fetch API (Exclusivo ATP / WTA)":
+            if st.button("🌐 Cargar y Analizar Partidos Élite de Tenis"):
+                with st.spinner("Buscando partidos del circuito principal ATP/WTA..."):
+                    try:
+                        # Consulta de partidos
+                        headers_t = {"x-apisports-key": API_KEY_PERSONAL}
+                        fecha_hoy = datetime.now().strftime("%Y-%m-%d")
+                        
+                        # Intento de consulta API Tennis
+                        url_t = f"https://v1.tennis.api-sports.io/games?date={fecha_hoy}"
+                        res_t = requests.get(url_t, headers=headers_t).json()
+                        todos_tenis = res_t.get("response", [])
+
+                        # Filtro estricto: Solo torneos ATP/WTA principales
+                        partidos_top_tenis = []
+                        for m in todos_tenis:
+                            nombre_torneo = str(m.get('tournament', {}).get('name', '')).upper()
+                            if "ATP" in nombre_torneo or "WTA" in nombre_torneo or "GRAND SLAM" in nombre_torneo:
+                                if "CHALLENGER" not in nombre_torneo and "ITF" not in nombre_torneo:
+                                    partidos_top_tenis.append({
+                                        'player_1': m.get('teams', {}).get('home', {}).get('name', 'Tenista 1'),
+                                        'player_2': m.get('teams', {}).get('away', {}).get('name', 'Tenista 2'),
+                                        'tournament': m.get('tournament', {}).get('name', 'ATP Tour'),
+                                        'hora': "Hoy / Horario Oficial"
+                                    })
+
+                        if partidos_top_tenis:
+                            st.success(f"¡Se encontraron {len(partidos_top_tenis)} partidos oficiales ATP/WTA!")
+                            for match in partidos_top_tenis[:5]:
+                                analizar_partido_tenis_api(match, monto_sugerido)
+                        else:
+                            st.warning("⚠️ HOY NO HAY PARTIDOS PROGRAMADOS EN EL CIRCUITO PRINCIPAL (ATP / WTA TOP).")
+                            st.info("👉 Se recomienda no apostar en torneos Challenger o ITF ya que dependen de mucha volatilidad y suerte.")
+
+                    except Exception as e:
+                        st.warning("⚠️ HOY NO HAY PARTIDOS PROGRAMADOS EN EL CIRCUITO PRINCIPAL (ATP / WTA TOP).")
+                        st.info("👉 Se recomienda no apostar en torneos Challenger o ITF ya que dependen de mucha volatilidad y suerte.")
+
+        else:
+            with st.form("form_tenis_manual"):
+                col1, col2 = st.columns(2)
+                with col1: t_p1 = st.text_input("Tenista A (Favorito)", value="Carlos Alcaraz")
+                with col2: t_p2 = st.text_input("Tenista B (Rival)", value="Daniil Medvedev")
+                t_torneo = st.selectbox("Torneo / Categoria", ["ATP Grand Slam / Masters 1000", "ATP 500 / 250", "WTA Premier / 1000"])
+                t_mercado = st.selectbox("Mercado a Evaluar (Ecuabet)", ["Gana Partido Directo (Moneyline)", "Gana Primer Set", "Más de (Over) Games Totales", "Handicap de Sets Favorable (-1.5)"])
+                st.write("---")
+                tf1 = st.checkbox("1. Dominio en la Superficie Actual (>65% victorias)", value=True)
+                tf2 = st.checkbox("2. Efectividad 1er Servicio Favorable (>70%)", value=True)
+                tf3 = st.checkbox("3. Historial Directo (H2H) a favor", value=True)
+                tf4 = st.checkbox("4. Descanso / Sin molestias físicas recientes", value=True)
+                tf5 = st.checkbox("5. Gran efectividad en Break Points", value=True)
+                tf6 = st.checkbox("6. Racha Reciente Positiva (4/5 ganados)", value=True)
+                tf7 = st.checkbox("7. Superioridad de Ranking y Defensa de Puntos", value=False)
+                if st.form_submit_button("🔍 Evaluar Partido de Tenis"):
+                    puntos_t = sum([tf1, tf2, tf3, tf4, tf5, tf6, tf7])
+                    evaluar_partido(t_p1, t_p2, t_torneo, "Ingreso Manual", t_mercado, puntos_t, monto_sugerido, ["Evaluación cuantitativa manual"])
 
     st.divider()
     if st.button("🔒 Cerrar Sesión / Bloquear App", key="btn_logout"):

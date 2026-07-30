@@ -87,29 +87,6 @@ st.markdown("""
         color: #ffffff;
         border: none;
     }
-
-    /* Títulos y distintivos */
-    .app-title {
-        font-size: 26px;
-        font-weight: 800;
-        color: #ffffff;
-        margin-bottom: 2px;
-    }
-    .app-subtitle {
-        color: #8b949e;
-        font-size: 14px;
-        margin-bottom: 20px;
-    }
-    
-    .badge {
-        background-color: #21262d;
-        color: #58a6ff;
-        padding: 4px 10px;
-        border-radius: 20px;
-        font-size: 12px;
-        font-weight: 600;
-        border: 1px solid #30363d;
-    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -162,10 +139,9 @@ if "autenticado" not in st.session_state:
     st.session_state.autenticado = False
 
 def pantalla_login():
-    st.markdown('<div class="app-title">🔒 Acceso Privado</div>', unsafe_allow_html=True)
-    st.markdown('<div class="app-subtitle">Sistema Cuantitativo Personal de Análisis Deportivo</div>', unsafe_allow_html=True)
+    st.title("🔒 Acceso Privado")
+    st.caption("Sistema Cuantitativo Personal de Análisis Deportivo")
     
-    st.markdown('<div class="custom-card">', unsafe_allow_html=True)
     st.write("Por favor, ingresa tu clave PIN para desbloquear el panel:")
     pin = st.text_input("PIN de Acceso", type="password", key="pin_input", label_visibility="collapsed")
     
@@ -175,7 +151,6 @@ def pantalla_login():
             st.rerun()
         else:
             st.error("❌ PIN incorrecto. Acceso denegado.")
-    st.markdown('</div>', unsafe_allow_html=True)
 
 # Verificar si el usuario ingresó la clave
 if not st.session_state.autenticado:
@@ -184,16 +159,16 @@ else:
     # ---------------------------------------------------------
     # 2. PANEL PRINCIPAL
     # ---------------------------------------------------------
-    st.markdown("""
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-            <div class="app-title">🎯 Asistente Privado</div>
-            <span class="badge">PRO v1.0</span>
-        </div>
-        <div class="app-subtitle">Sistema Cuantitativo & Gestión de Riesgo</div>
-    """, unsafe_allow_html=True)
+    col_titulo, col_badge = st.columns([3, 1])
+    with col_titulo:
+        st.title("🎯 Asistente Privado")
+    with col_badge:
+        st.markdown("<br><span style='background-color:#21262d; color:#58a6ff; padding:4px 10px; border-radius:20px; font-size:12px; font-weight:600; border:1px solid #30363d;'>PRO v1.0</span>", unsafe_allow_html=True)
+    
+    st.caption("Sistema Cuantitativo & Gestión de Riesgo")
+    st.divider()
 
     # Módulo de Banca Diaria
-    st.markdown('<div class="custom-card">', unsafe_allow_html=True)
     st.subheader("💵 Control de Saldo Diario")
     
     saldo = st.number_input(
@@ -212,7 +187,8 @@ else:
             <span style="font-size: 26px; font-weight: bold; color: #38bdf8;">${monto_sugerido:.2f} USD</span>
         </div>
     """, unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+    
+    st.divider()
 
     # Módulo de Análisis Deportivo
     st.subheader("📊 Módulos de Análisis")
@@ -256,7 +232,7 @@ else:
         if st.button("🔍 Analizar Partidos de Tenis", key="btn_tenis"):
             st.info("⚙️ Conectando datos de la ATP/WTA...")
 
-    st.write("")
+    st.divider()
     if st.button("🔒 Cerrar Sesión / Bloquear App", key="btn_logout"):
         st.session_state.autenticado = False
         st.rerun()

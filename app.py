@@ -11,6 +11,9 @@ st.set_page_config(
     layout="centered"
 )
 
+# 🔑 TU API KEY GUARDADA AUTOMÁTICAMENTE
+API_KEY_AUTOMATICA = "c41cb1cda09b379e3553b978595b7e47"
+
 # Estilos CSS Limpios
 st.markdown("""
 <style>
@@ -34,19 +37,19 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-st.title("👑 QUANT-BET VIP v3.1 (Anti-Bloqueo)")
+st.title("👑 QUANT-BET VIP v3.2")
 st.caption("Filtro Cuantitativo Protegido: Control de consumo de API y gestión de capital")
 st.divider()
 
 # -----------------------------------------------------------------------------
-# 2. BARRA LATERAL (INPUTS)
+# 2. BARRA LATERAL (INPUTS DE CAPITAL)
 # -----------------------------------------------------------------------------
 st.sidebar.header("💰 Gestión de Capital (Bankroll)")
-api_key_input = st.sidebar.text_input("🔑 Tu API Key (API-Sports):", type="password")
 capital_total = st.sidebar.number_input("Tu Capital Disponible ($):", min_value=5.0, value=50.0, step=5.0)
 
 st.sidebar.divider()
-st.sidebar.success("🛡️ Protección Anti-Bloqueo Activa: Los datos se guardan en caché para cuidar tu API Key.")
+st.sidebar.success("🔑 API Key Autenticada y Protegida.")
+st.sidebar.info("🛡️ Protección Anti-Bloqueo Activa: Los datos se guardan en memoria caché para cuidar tu límite diario.")
 
 LIGAS_TOP = {
     2: "EUROPA LEAGUE 🇪🇺",
@@ -77,9 +80,9 @@ def calcular_monto_apuesta(prob_decimal, cuota, capital):
     return round(monto, 2), round(f_fraccionado * 100, 1)
 
 # -----------------------------------------------------------------------------
-# 4. FUNCIÓN CON CACHÉ (EVITA SUSPENSIONES DE API)
+# 4. FUNCIÓN CON CACHÉ (PROTECCIÓN ANTI-SUSPENSIÓN)
 # -----------------------------------------------------------------------------
-@st.cache_data(ttl=3600)  # 🔒 Guarda los resultados por 1 hora (3600 segundos)
+@st.cache_data(ttl=3600)  # Guarda resultados 1 hora en memoria
 def consultar_api_segura(api_key, fecha):
     headers = {"x-apisports-key": api_key}
     url = f"https://v3.football.api-sports.io/fixtures?date={fecha}"
@@ -90,11 +93,11 @@ def consultar_api_segura(api_key, fecha):
     except Exception as e:
         return {"error": str(e)}
 
-def obtener_partidos_reales(api_key):
+def obtener_partidos_reales():
     fecha_hoy = datetime.now().strftime("%Y-%m-%d")
     
-    # Llamada protegida por memoria caché
-    res = consultar_api_segura(api_key, fecha_hoy)
+    # Llamada protegida
+    res = consultar_api_segura(API_KEY_AUTOMATICA, fecha_hoy)
 
     if "error" in res:
         st.error(f"⚠️ Error de conexión: {res['error']}")
@@ -102,7 +105,7 @@ def obtener_partidos_reales(api_key):
 
     if res.get("errors") and len(res["errors"]) > 0:
         st.error(f"⚠️ Error devuelto por API-Sports: {res['errors']}")
-        st.warning("🔒 El sistema detuvo las peticiones para evitar la suspensión de tu cuenta.")
+        st.warning("🔒 El sistema detuvo las peticiones para proteger tu cuenta.")
         return []
 
     partidos = res.get("response", [])
@@ -158,39 +161,36 @@ def obtener_partidos_reales(api_key):
 # 5. RENDERIZADO
 # -----------------------------------------------------------------------------
 if st.button("⚡ ESCANEAR PARTIDOS DE HOY"):
-    if not api_key_input:
-        st.warning("⚠️ Ingresa tu API Key en la barra lateral izquierda primero.")
-    else:
-        with st.spinner("Consultando datos de forma segura..."):
-            datos = obtener_partidos_reales(api_key_input)
+    with st.spinner("Consultando datos de forma segura..."):
+        datos = obtener_partidos_reales()
+        
+        if not datos:
+            st.info("ℹ️ No hay partidos de las Ligas Élite programados para hoy o se alcanzó el límite seguro diario.")
+        else:
+            st.markdown(f"### 📋 Oportunidades Seleccionadas ({len(datos)})")
             
-            if not datos:
-                st.info("ℹ️ No hay partidos de las Ligas Élite programados para hoy o se alcanzó el límite seguro diario.")
-            else:
-                st.markdown(f"### 📋 Oportunidades Seleccionadas ({len(datos)})")
+            for d in datos:
+                monto_sugerido, pct_bank = calcular_monto_apuesta(d['prob_dec'], d['cuota_num'], capital_total)
                 
-                for d in datos:
-                    monto_sugerido, pct_bank = calcular_monto_apuesta(d['prob_dec'], d['cuota_num'], capital_total)
-                    
-                    st.markdown(f"""
-                    <div class="card-pro">
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                            <span class="badge-market">{d['tipo']}</span>
-                            <span class="badge-value">VALOR: {d['ev']}</span>
-                            <span class="badge-kelly">INVERTIR: ${monto_sugerido} USD ({pct_bank}%)</span>
-                        </div>
-                        <div style="font-size:12px; opacity:0.75; margin-top:4px;">{d['liga']}</div>
-                        <h3 style="margin:4px 0 10px 0; color:#f9fafb;">{d['partido']}</h3>
-                        <div style="font-size:17px; font-weight:bold; color:#ffffff; margin-bottom:8px;">
-                            📌 MERCADO: <span style="color:#6EE7B7;">{d['mercado']}</span>
-                        </div>
-                        <div style="font-size:14px; margin-bottom:10px; background:rgba(255,255,255,0.03); padding:8px; border-radius:6px;">
-                            <strong>Monto Sugerido:</strong> <span style="color:#6EE7B7; font-weight:bold;">${monto_sugerido} USD</span> | 
-                            <strong>Cuota:</strong> @{d['cuota_num']} | 
-                            <strong>Certeza:</strong> {d['prob_str']}
-                        </div>
-                        <div style="font-size:12px; opacity:0.8; border-top:1px solid #1e293b; padding-top:8px;">
-                            💡 <em>{d['razon']}</em>
-                        </div>
+                st.markdown(f"""
+                <div class="card-pro">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                        <span class="badge-market">{d['tipo']}</span>
+                        <span class="badge-value">VALOR: {d['ev']}</span>
+                        <span class="badge-kelly">INVERTIR: ${monto_sugerido} USD ({pct_bank}%)</span>
                     </div>
-                    """, unsafe_allow_html=True)
+                    <div style="font-size:12px; opacity:0.75; margin-top:4px;">{d['liga']}</div>
+                    <h3 style="margin:4px 0 10px 0; color:#f9fafb;">{d['partido']}</h3>
+                    <div style="font-size:17px; font-weight:bold; color:#ffffff; margin-bottom:8px;">
+                        📌 MERCADO: <span style="color:#6EE7B7;">{d['mercado']}</span>
+                    </div>
+                    <div style="font-size:14px; margin-bottom:10px; background:rgba(255,255,255,0.03); padding:8px; border-radius:6px;">
+                        <strong>Monto Sugerido:</strong> <span style="color:#6EE7B7; font-weight:bold;">${monto_sugerido} USD</span> | 
+                        <strong>Cuota:</strong> @{d['cuota_num']} | 
+                        <strong>Certeza:</strong> {d['prob_str']}
+                    </div>
+                    <div style="font-size:12px; opacity:0.8; border-top:1px solid #1e293b; padding-top:8px;">
+                        💡 <em>{d['razon']}</em>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)

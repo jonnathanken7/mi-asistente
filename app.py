@@ -11,7 +11,7 @@ st.set_page_config(
 )
 
 # 🔑 TU API KEY (API-Sports)
-API_KEY_PERSONAL = "991d79e06192fe12b588dd70438b6441"
+API_KEY_PERSONAL = "c41cb1cda09b379e3553b978595b7e47"
 
 # 🏆 Ligas Élite y Copas Internacionales
 LIGAS_PERMITIDAS_FUTBOL = [2, 3, 848, 11, 13, 39, 140, 135, 78, 61, 71, 128, 242]

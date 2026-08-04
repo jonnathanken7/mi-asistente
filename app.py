@@ -12,7 +12,7 @@ st.set_page_config(
 )
 
 # 🔑 TU API KEY GUARDADA AUTOMÁTICAMENTE
-API_KEY_AUTOMATICA = "c41cb1cda09b379e3553b978595b7e47"
+API_KEY_AUTOMATICA = st.secrets["API_KEY"]
 
 # Estilos CSS Limpios
 st.markdown("""

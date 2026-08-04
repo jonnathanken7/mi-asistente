@@ -1,6 +1,6 @@
 import streamlit as st
 import requests
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 # -----------------------------------------------------------------------------
 # 1. CONFIGURACIÓN DE PÁGINA
@@ -34,11 +34,12 @@ st.markdown("""
     .badge-market { background-color: #064e3b; color: #6ee7b7; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: bold; }
     .badge-value { background-color: #312e81; color: #a5b4fc; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: bold; }
     .badge-kelly { background-color: #701a75; color: #f5d0fe; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: bold; }
+    .badge-time { background-color: #1e293b; color: #f3f4f6; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: bold; border: 1px solid #334155; }
 </style>
 """, unsafe_allow_html=True)
 
-st.title("👑 QUANT-BET VIP v3.4")
-st.caption("Filtro Cuantitativo con Encabezado Clarificado de Estadísticas")
+st.title("👑 QUANT-BET VIP v3.5")
+st.caption("Filtro Cuantitativo con Horarios Locales y Comparador Estadístico Visual")
 st.divider()
 
 # -----------------------------------------------------------------------------
@@ -66,7 +67,7 @@ LIGAS_TOP = {
 }
 
 # -----------------------------------------------------------------------------
-# 3. GESTIÓN DE APUESTA (KELLY)
+# 3. GESTIÓN DE APUESTA Y FORMATO DE HORA
 # -----------------------------------------------------------------------------
 def calcular_monto_apuesta(prob_decimal, cuota, capital):
     b = cuota - 1.0
@@ -79,11 +80,19 @@ def calcular_monto_apuesta(prob_decimal, cuota, capital):
     monto = capital * f_fraccionado
     return round(monto, 2), round(f_fraccionado * 100, 1)
 
+def formatear_hora_ecuador(iso_date_str):
+    try:
+        # Convertir fecha ISO a horario local Ecuador (UTC-5)
+        dt_utc = datetime.fromisoformat(iso_date_str.replace('Z', '+00:00'))
+        dt_ec = dt_utc.astimezone(timezone(timedelta(hours=-5)))
+        return dt_ec.strftime("%H:%M ECT")
+    except Exception:
+        return "POR DEFINIR"
+
 # -----------------------------------------------------------------------------
 # 4. COMPONENTE VISUAL CON NOMBRES DE EQUIPOS EN LA CABECERA
 # -----------------------------------------------------------------------------
 def renderizar_cuadro_estadisticas(home_name, away_name, stats_h, stats_a):
-    # Encabezado claro identificando los equipos
     c_h, c_m, c_a = st.columns([2, 1, 2])
     with c_h:
         st.markdown(f"<h4 style='text-align: left; color: #6ee7b7; margin-bottom: 10px;'>🏠 {home_name}</h4>", unsafe_allow_html=True)
@@ -146,6 +155,10 @@ def obtener_partidos_reales():
         away = p['teams']['away']['name']
         league_id = p['league']['id']
         league_name = LIGAS_TOP.get(league_id, p['league']['name'])
+        
+        # Extraer hora real del encuentro
+        fecha_raw = p.get('fixture', {}).get('date', '')
+        hora_formateada = formatear_hora_ecuador(fecha_raw) if fecha_raw else "HORA N/D"
 
         if league_id in [242, 128]:
             mercado = "MÁS DE 8.0 CÓRNERES TOTALES"
@@ -183,6 +196,7 @@ def obtener_partidos_reales():
             "home": home.upper(),
             "away": away.upper(),
             "partido": f"{home.upper()} vs {away.upper()}",
+            "hora": hora_formateada,
             "mercado": mercado,
             "tipo": tipo,
             "cuota_num": cuota_num,
@@ -215,6 +229,7 @@ if st.button("⚡ ESCANEAR PARTIDOS DE HOY"):
                 <div class="card-pro">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
                         <span class="badge-market">{d['tipo']}</span>
+                        <span class="badge-time">⏰ HORA: {d['hora']}</span>
                         <span class="badge-value">VALOR: {d['ev']}</span>
                         <span class="badge-kelly">INVERTIR: ${monto_sugerido} USD ({pct_bank}%)</span>
                     </div>

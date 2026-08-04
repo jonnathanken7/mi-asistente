@@ -37,8 +37,8 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-st.title("👑 QUANT-BET VIP v3.3")
-st.caption("Filtro Cuantitativo con Comparador Estadístico Visual")
+st.title("👑 QUANT-BET VIP v3.4")
+st.caption("Filtro Cuantitativo con Encabezado Clarificado de Estadísticas")
 st.divider()
 
 # -----------------------------------------------------------------------------
@@ -80,11 +80,20 @@ def calcular_monto_apuesta(prob_decimal, cuota, capital):
     return round(monto, 2), round(f_fraccionado * 100, 1)
 
 # -----------------------------------------------------------------------------
-# 4. COMPONENTE VISUAL DE ESTADÍSTICAS (ESTILO SOFASCORE / FLASHSCORE)
+# 4. COMPONENTE VISUAL CON NOMBRES DE EQUIPOS EN LA CABECERA
 # -----------------------------------------------------------------------------
 def renderizar_cuadro_estadisticas(home_name, away_name, stats_h, stats_a):
-    st.markdown("<h5 style='text-align: center; color: #94a3b8;'>📊 PROMEDIOS Y COMPARATIVA EN VIVO</h5>", unsafe_allow_html=True)
+    # Encabezado claro identificando los equipos
+    c_h, c_m, c_a = st.columns([2, 1, 2])
+    with c_h:
+        st.markdown(f"<h4 style='text-align: left; color: #6ee7b7; margin-bottom: 10px;'>🏠 {home_name}</h4>", unsafe_allow_html=True)
+    with c_m:
+        st.markdown("<h5 style='text-align: center; color: #94a3b8;'>VS</h5>", unsafe_allow_html=True)
+    with c_a:
+        st.markdown(f"<h4 style='text-align: right; color: #a5b4fc; margin-bottom: 10px;'>✈️ {away_name}</h4>", unsafe_allow_html=True)
     
+    st.divider()
+
     metricas = [
         ("Possession", f"{stats_h['posicion']}%", f"{stats_a['posicion']}%", stats_h['posicion'] / 100),
         ("Tiros a gol", stats_h['tiros_gol'], stats_a['tiros_gol'], stats_h['tiros_gol'] / max(1, (stats_h['tiros_gol'] + stats_a['tiros_gol']))),
@@ -97,17 +106,17 @@ def renderizar_cuadro_estadisticas(home_name, away_name, stats_h, stats_a):
     ]
 
     for nombre, val_loc, val_vis, pct_bar in metricas:
-        c1, c2, c3 = st.columns([1, 2, 1])
-        with c1:
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col1:
             st.markdown(f"<p style='text-align: left; margin:0; font-weight:bold; color:#6ee7b7;'>{val_loc}</p>", unsafe_allow_html=True)
-        with c2:
+        with col2:
             st.markdown(f"<p style='text-align: center; margin:0; font-size:11px; opacity:0.8;'>{nombre}</p>", unsafe_allow_html=True)
             st.progress(float(pct_bar))
-        with c3:
+        with col3:
             st.markdown(f"<p style='text-align: right; margin:0; font-weight:bold; color:#a5b4fc;'>{val_vis}</p>", unsafe_allow_html=True)
 
 # -----------------------------------------------------------------------------
-# 5. FUNCIÓN CON CACHÉ (PROTECCIÓN ANTI-SUSPENSIÓN)
+# 5. FUNCIÓN CON CACHÉ
 # -----------------------------------------------------------------------------
 @st.cache_data(ttl=3600)
 def consultar_api_segura(api_key, fecha):
@@ -225,6 +234,5 @@ if st.button("⚡ ESCANEAR PARTIDOS DE HOY"):
                 </div>
                 """, unsafe_allow_html=True)
                 
-                # Desplegable visual de estadísticas estilo SofaScore
                 with st.expander(f"📊 Ver Cuadro Comparativo de Estadísticas ({d['home']} vs {d['away']})"):
                     renderizar_cuadro_estadisticas(d['home'], d['away'], d['stats_h'], d['stats_a'])

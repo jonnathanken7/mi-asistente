@@ -13,8 +13,9 @@ st.set_page_config(
 # 🔑 TU API KEY (API-Sports)
 API_KEY_PERSONAL = "991d79e06192fe12b588dd70438b6441"
 
-# Ligas Profesionales Top de Fútbol (API-Football)
-LIGAS_PERMITIDAS_FUTBOL = [2, 3, 39, 140, 135, 78, 61, 13, 11, 71, 128]
+# 🏆 Ligas Profesionales Top & Torneos Internacionales (API-Football)
+# Se agregaron: Europa League (3), Conference League (848), Libertadores (11), Sudamericana (13) y LigaPro Ecuador (242)
+LIGAS_PERMITIDAS_FUTBOL = [2, 3, 848, 11, 13, 39, 140, 135, 78, 61, 71, 128, 242]
 
 # 🎨 Estilos CSS Limpios y Profesionales
 st.markdown("""
@@ -91,7 +92,7 @@ def evaluar_partido_pro(equipo_a, equipo_b, liga, hora, pronostico, puntos, mont
 # ---------------------------------------------------------
 # FUNCIONES DE DATOS REALES (CON FILTRO ESTRICTO)
 # ---------------------------------------------------------
-def obtener_analisis_futbol(monto_sugerido, mercado_tipo, mostrar_cards=True):
+def obtener_analisis_futbol(monto_sugerido, mercado_tipo="Goles + Doble Oportunidad", mostrar_cards=True):
     headers = {"x-apisports-key": API_KEY_PERSONAL}
     fecha_hoy = datetime.now().strftime("%Y-%m-%d")
     url_today = f"https://v3.football.api-sports.io/fixtures?date={fecha_hoy}"
@@ -102,7 +103,7 @@ def obtener_analisis_futbol(monto_sugerido, mercado_tipo, mostrar_cards=True):
         todos_los_partidos = res_today.get("response", [])
         partidos_filtrados = [f for f in todos_los_partidos if f.get('league', {}).get('id') in LIGAS_PERMITIDAS_FUTBOL]
 
-        for item in partidos_filtrados[:6]:
+        for item in partidos_filtrados[:10]:  # Aumentamos límite a 10 partidos para no dejar fuera torneos ocupados
             team_home = item['teams']['home']['name']
             team_away = item['teams']['away']['name']
             league_name = item['league']['name']
@@ -133,7 +134,7 @@ def obtener_analisis_futbol(monto_sugerido, mercado_tipo, mostrar_cards=True):
             if mostrar_cards:
                 evaluar_partido_pro(team_home, team_away, league_name, hora_partido, mercado_sugerido, puntos, monto_sugerido, detalles=filtros_cumplidos, deporte="⚽")
 
-            resultados.append({"deporte": "⚽ Fútbol", "partido": f"{team_home} vs {team_away}", "mercado": mercado_sugerido, "puntos": puntos, "hora": hora_partido, "liga": league_name})
+            resultados.append({"deporte": "⚽", "partido": f"{team_home} vs {team_away}", "mercado": mercado_sugerido, "puntos": puntos, "hora": hora_partido, "liga": league_name})
     except:
         pass
     return resultados
@@ -184,7 +185,7 @@ def obtener_analisis_basquet(monto_sugerido, mostrar_cards=True):
             if mostrar_cards:
                 evaluar_partido_pro(team_home, team_away, league_name, hora_partido, mercado_sugerido, puntos, monto_sugerido, detalles=filtros_cumplidos, deporte="🏀")
 
-            resultados.append({"deporte": "🏀 Básquet", "partido": f"{team_home} vs {team_away}", "mercado": mercado_sugerido, "puntos": puntos, "hora": hora_partido, "liga": league_name})
+            resultados.append({"deporte": "🏀", "partido": f"{team_home} vs {team_away}", "mercado": mercado_sugerido, "puntos": puntos, "hora": hora_partido, "liga": league_name})
     except:
         pass
     return resultados
@@ -222,7 +223,7 @@ def obtener_analisis_tenis(monto_sugerido, mostrar_cards=True):
             if mostrar_cards:
                 evaluar_partido_pro(p1, p2, tournament, hora_partido, mercado_sugerido, puntos, monto_sugerido, detalles=filtros_cumplidos, deporte="🎾")
 
-            resultados.append({"deporte": "🎾 Tenis", "partido": f"{p1} vs {p2}", "mercado": mercado_sugerido, "puntos": puntos, "hora": hora_partido, "liga": tournament})
+            resultados.append({"deporte": "🎾", "partido": f"{p1} vs {p2}", "mercado": mercado_sugerido, "puntos": puntos, "hora": hora_partido, "liga": tournament})
     except:
         pass
     return resultados
@@ -269,9 +270,15 @@ else:
                 if todos:
                     for p in todos:
                         evaluar_partido_pro(
-                            p['partido'].split(" vs ")[0], p['partido'].split(" vs ")[1], 
-                            p['liga'], p['hora'], p['mercado'], p['puntos'], 
-                            monto_sugerido, ["Cumple con los filtros cuantitativos de ligas élite"], p['deporte'].split(" ")[1]
+                            p['partido'].split(" vs ")[0], 
+                            p['partido'].split(" vs ")[1], 
+                            p['liga'], 
+                            p['hora'], 
+                            p['mercado'], 
+                            p['puntos'], 
+                            monto_sugerido, 
+                            ["Cumple con los filtros cuantitativos de ligas élite"], 
+                            p['deporte']
                         )
                 else:
                     st.warning("⚠️ No hay partidos disponibles hoy en las ligas élite configuradas para ninguna disciplina.")

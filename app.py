@@ -93,62 +93,31 @@ def evaluar_partido_pro(equipo_a, equipo_b, liga, hora, pronostico, puntos, mont
         st.divider()
 
 # ---------------------------------------------------------
-# ANÁLISIS ESTADÍSTICO REAL CON LA API
+# BÚSQUEDA Y EVALUACIÓN DE PARTIDOS EN API
 # ---------------------------------------------------------
-def analizar_estadisticas_equipo(id_equipo, headers):
-    """Consulta los últimos 5 partidos del equipo para obtener datos reales."""
-    url = f"https://v3.football.api-sports.io/fixtures?team={id_equipo}&last=5"
-    try:
-        res = requests.get(url, headers=headers).json()
-        partidos = res.get("response", [])
-        if not partidos:
-            return {"victorias_empates": 0, "promedio_goles": 0.0, "total_partidos": 0}
-
-        victorias_empates = 0
-        total_goles = 0
-
-        for p in partidos:
-            es_local = p['teams']['home']['id'] == id_equipo
-            goles_favor = p['goals']['home'] if es_local else p['goals']['away']
-            goles_contra = p['goals']['away'] if es_local else p['goals']['home']
-            
-            if goles_favor is not None and goles_contra is not None:
-                total_goles += goles_favor + goles_contra
-                if goles_favor >= goles_contra:
-                    victorias_empates += 1
-
-        cant = len(partidos)
-        return {
-            "victorias_empates": victorias_empates,
-            "promedio_goles": round(total_goles / cant, 2) if cant > 0 else 0.0,
-            "total_partidos": cant
-        }
-    except:
-        return {"victorias_empates": 0, "promedio_goles": 0.0, "total_partidos": 0}
-
 def obtener_analisis_futbol(monto_sugerido, mercado_tipo="Goles + Doble Oportunidad", mostrar_cards=True):
     headers = {"x-apisports-key": API_KEY_PERSONAL}
-    fecha_hoy = datetime.now().strftime("%Y-%m-%d")
-    fecha_manana = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
     resultados = []
+    partidos_encontrados = []
 
-    def consultar_fecha(fecha):
-        url = f"https://v3.football.api-sports.io/fixtures?date={fecha}"
-        res = requests.get(url, headers=headers).json()
-        todos = res.get("response", [])
-        return [f for f in todos if f.get('league', {}).get('id') in LIGAS_PERMITIDAS_FUTBOL]
-
-    partidos_filtrados = consultar_fecha(fecha_hoy)
-    es_manana = False
-
-    if not partidos_filtrados:
-        partidos_filtrados = consultar_fecha(fecha_manana)
-        es_manana = True
+    # Busca partidos desde hoy hasta los próximos 7 días para asegurar cartelera
+    for d in range(7):
+        fecha_str = (datetime.now() + timedelta(days=d)).strftime("%Y-%m-%d")
+        url = f"https://v3.football.api-sports.io/fixtures?date={fecha_str}"
+        try:
+            res = requests.get(url, headers=headers).json()
+            todos = res.get("response", [])
+            filtrados = [f for f in todos if f.get('league', {}).get('id') in LIGAS_PERMITIDAS_FUTBOL]
+            if filtrados:
+                partidos_encontrados.extend(filtrados)
+                if len(partidos_encontrados) >= 5:
+                    break
+        except:
+            pass
 
     try:
-        for item in partidos_filtrados[:5]:  # Analizamos 5 partidos con métricas profundas
-            id_home = item['teams']['home']['id']
-            id_away = item['teams']['away']['id']
+        for item in partidos_encontrados[:5]:
+            fixture_id = item['fixture']['id']
             team_home = item['teams']['home']['name']
             team_away = item['teams']['away']['name']
             league_name = item['league']['name']
@@ -157,40 +126,50 @@ def obtener_analisis_futbol(monto_sugerido, mercado_tipo="Goles + Doble Oportuni
             try:
                 fecha_utc = datetime.fromisoformat(fecha_utc_str.replace('Z', '+00:00'))
                 fecha_ecuador = fecha_utc - timedelta(hours=5)
-                prefix = "Mañana " if es_manana else ""
-                hora_partido = prefix + fecha_ecuador.strftime("%I:%M %p")
+                hora_partido = fecha_ecuador.strftime("%d/%m - %I:%M %p")
             except:
-                hora_partido = "Mañana" if es_manana else "Horario Oficial"
+                hora_partido = "Horario Oficial"
 
-            # 📊 Consulta de estadísticas reales
-            stats_home = analizar_estadisticas_equipo(id_home, headers)
-            stats_away = analizar_estadisticas_equipo(id_away, headers)
+            # 📊 Consulta de predicción y métricas consolidadas (1 sola llamada eficiente)
+            url_pred = f"https://v3.football.api-sports.io/predictions?fixture={fixture_id}"
+            res_pred = requests.get(url_pred, headers=headers).json()
+            pred_data = res_pred.get("response", [{}])[0]
 
-            puntos = 1
+            puntos = 3
             filtros_cumplidos = [f"Competición Élite: {league_name}"]
 
-            # Evaluar racha de invicto (últimos 5 partidos)
-            if stats_home["victorias_empates"] >= 4:
-                puntos += 2
-                filtros_cumplidos.append(f"{team_home} no pierde en {stats_home['victorias_empates']}/5 de sus últimos encuentros.")
-            elif stats_home["victorias_empates"] >= 3:
-                puntos += 1
-                filtros_cumplidos.append(f"{team_home} mantiene regularidad razonable ({stats_home['victorias_empates']}/5 no perdidos).")
+            if pred_data:
+                comparison = pred_data.get("comparison", {})
+                form_home = comparison.get("form", {}).get("home", "0%")
+                form_away = comparison.get("form", {}).get("away", "0%")
+                
+                # Convertir porcentajes de forma a números
+                try:
+                    pct_home = int(str(form_home).replace("%", ""))
+                    pct_away = int(str(form_away).replace("%", ""))
+                except:
+                    pct_home, pct_away = 50, 50
 
-            # Evaluar promedio combinado de goles
-            promedio_combinado = round((stats_home["promedio_goles"] + stats_away["promedio_goles"]) / 2, 2)
-            if promedio_combinado >= 2.5:
-                puntos += 2
-                filtros_cumplidos.append(f"Promedio de goles muy elevado: {promedio_combinado} goles/partido entre ambos.")
-            elif promedio_combinado >= 1.8:
-                puntos += 1
-                filtros_cumplidos.append(f"Promedio de goles moderado: {promedio_combinado} goles/partido.")
+                if pct_home >= 60:
+                    puntos += 2
+                    filtros_cumplidos.append(f"Racha de rendimiento destacada para {team_home} ({pct_home}% en últimos partidos).")
+                elif pct_home >= 40:
+                    puntos += 1
+                    filtros_cumplidos.append(f"Racha regular para {team_home} ({pct_home}%).")
 
-            # Selección de mercado ajustada según los datos
+                advice = pred_data.get("predictions", {}).get("advice", "")
+                if advice:
+                    filtros_cumplidos.append(f"Tendencia estadística API: {advice}")
+
+                if pct_home > pct_away and pct_home >= 50:
+                    puntos += 1
+                    filtros_cumplidos.append(f"{team_home} presenta mejor forma actual que {team_away}.")
+
+            # Determinación de mercado
             if mercado_tipo == "Goles + Doble Oportunidad":
-                mercado_sugerido = f"Gana/Empata {team_home} & +1.5 Goles" if promedio_combinado >= 1.8 else f"Gana/Empata {team_home}"
+                mercado_sugerido = f"Gana/Empata {team_home} & +1.5 Goles" if puntos >= 5 else f"Gana/Empata {team_home}"
             elif mercado_tipo == "Línea de Goles Directa":
-                mercado_sugerido = "Más de 2.5 Goles" if promedio_combinado >= 2.5 else "Más de 1.5 Goles"
+                mercado_sugerido = "Más de 2.5 Goles" if puntos >= 6 else "Más de 1.5 Goles"
             else:
                 mercado_sugerido = "Más de 8.5 Córneres Totales"
 
@@ -342,7 +321,7 @@ else:
                             p['deporte']
                         )
                 else:
-                    st.warning("⚠️ No hay partidos disponibles hoy ni mañana en las ligas élite configuradas.")
+                    st.warning("⚠️ No hay partidos disponibles en los próximos días en las ligas élite configuradas.")
 
     with tab_futbol:
         st.markdown("### ⚽ Fútbol")
@@ -350,7 +329,7 @@ else:
             with st.spinner("Evaluando rachas y promedios de goles en tiempo real..."):
                 res = obtener_analisis_futbol(monto_sugerido, mercado_preferido, mostrar_cards=True)
                 if not res:
-                    st.warning("⚠️ No hay encuentros programados hoy ni mañana en las ligas élite de fútbol.")
+                    st.warning("⚠️ No hay encuentros programados en los próximos días en las ligas élite de fútbol.")
 
     with tab_basquet:
         st.markdown("### 🏀 Básquet")

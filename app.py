@@ -1,75 +1,50 @@
-import requests
-import sys
-
-def obtener_datos_partido(equipo_local, equipo_visitante):
-    """
-    Consulta una API abierta de estadísticas de fútbol para obtener 
-    el rendimiento real y los promedios de goles recientes.
-    """
-    url = f"https://api.football-data.org/v4/matches"
-    headers = {"X-Auth-Token": "TU_API_KEY_GRATUITO"} # Puedes registrarte gratis en football-data.org para una key
+def analizar_partido_seguro(equipo_local, equipo_visitante, cuota_local, racha_local, racha_visitante, promedio_goles):
+    print("=" * 60)
+    print(f" ANÁLISIS DE RIESGO: {equipo_local} vs {equipo_visitante}")
+    print("=" * 60)
     
-    # Nota: Si prefieres no usar Key externa, el script calcula con la estructura de análisis estricto en vivo.
-    print(f"[*] Consultando bases de datos para: {equipo_local} vs {equipo_visitante}...")
+    # Cálculo de puntos según los últimos resultados (G = 3 pts, E = 1 pt, P = 0 pts)
+    puntos_local = racha_local.count("G") * 3 + racha_local.count("E")
+    puntos_visitante = racha_visitante.count("G") * 3 + racha_visitante.count("E")
     
-    # Simulador de conexión real con validación de seguridad de cuotas
-    return True
+    print(f"1. Forma Reciente (Últimos 5 partidos):")
+    print(f"   - {equipo_local}: {puntos_local} puntos (Racha: {racha_local})")
+    print(f"   - {equipo_visitante}: {puntos_visitante} puntos (Racha: {racha_visitante})")
+    print(f"2. Promedio combinado de goles estimado: {promedio_goles}")
 
-def analizar_apuesta_real(equipo_local, equipo_visitante, cuota_local, goles_historicos_local, goles_historicos_visitante, ultimos_resultados_local, ultimos_resultados_visitante):
-    print("\n" + "="*50)
-    print(f" ANÁLISIS TÉCNICO DE RIESGO: {equipo_local} vs {equipo_visitante}")
-    print("="*50)
-    
-    # 1. EVALUACIÓN DE FORMA REAL (Basada en los últimos partidos ingresados)
-    puntos_local = ultimos_resultados_local.count("G") * 3 + ultimos_resultados_local.count("E")
-    puntos_visitante = ultimos_resultados_visitante.count("G") * 3 + ultimos_resultados_visitante.count("E")
-    
-    print(f"[1] Forma Reciente (Últimos 5):")
-    print(f"    - {equipo_local}: {puntos_local} puntos (Racha: {ultimos_resultados_local})")
-    print(f"    - {equipo_visitante}: {puntos_visitante} puntos (Racha: {ultimos_resultados_visitante})")
-
-    # 2. CÁLCULO ESTRICTO DE PROMEDIO DE GOLES
-    promedio_goles = (goles_historicos_local + goles_historicos_visitante) / 2
-    print(f"[2] Promedio Real Combinado de Goles: {promedio_goles:.2f} goles por encuentro")
-
-    # 3. ESCUDO ANTI-TRAMPA Y CONTROL DE RIESGO FINANCIERO
-    # Detecta si la cuota del favorito es trampa (baja pero con rendimiento irregular)
+    # ESCUDO ANTI-TRAMPA (Evita cuotas engañosas en favoritos irregulares)
     alerta_trampa = False
     if cuota_local < 1.60 and puntos_local < 9:
         alerta_trampa = True
 
-    print(f"[3] Verificación de Cuota ({cuota_local}):")
-    
+    print(3 * " " + f"3. Verificación de Cuota ({cuota_local}):")
+
     if alerta_trampa:
         print("    🚨 ¡ALERTA ROJA: PARTIDO TRAMPA DETECTADO!")
-        print("    -> La cuota es muy baja para el rendimiento irregular del equipo local.")
-        recomendacion = "PROHIBIDO APOSTAR (Alto riesgo de sorpresa en contra)"
-        nivel_confianza = "0% (EVITAR)"
-    elif promedio_goles_partido_condicion(promedio_goles, puntos_local, puntos_visitante):
-        recomendacion = "APUESTA SEGURA APROBADA (Mercado de goles/doble oportunidad moderada)"
-        nivel_confianza = "85% - ALTA PROBABILIDAD"
+        print(f"    -> La cuota para {equipo_local} es muy baja y su rendimiento reciente es irregular.")
+        recomendacion = "❌ PROHIBIDO APOSTAR (Alto riesgo de tropiezo / Evitar favorito)"
+        confianza = "0% - PELIGROSO"
+    elif promedio_goles >= 2.2 and puntos_local >= puntos_visitante:
+        print("    ✅ Estadísticas estables y favorables.")
+        recomendacion = "✔️ APUESTA RESPONSABLE APROBADA (Mercado de goles o doble oportunidad)"
+        confianza = "80% - SEGURO"
     else:
-        recomendacion = "MERCADO DIVIDIDO. Mejor pasar de largo y conservar el dinero."
-        nivel_confianza = "40% - NO RECOMENDADO"
+        print("    ⚠️ Estadísticas divididas o poco claras.")
+        recomendacion = "⚠️ MEJOR PASAR DE LARGO (Conservar el dinero)"
+        confianza = "40% - DUDOSO"
 
-    print("\n" + "-"*50)
-    print(f"💡 VEREDICTO FINAL DE LA HERRAMIENTA:")
+    print("-" * 60)
+    print(f"💡 VEREDICTO FINAL PARA TU DECISIÓN:")
     print(f"   Acción: {recomendacion}")
-    print(f"   Confianza: {nivel_confianza}")
-    print("="*50 + "\n")
+    print(f"   Nivel de Confianza: {confianza}")
+    print("=" * 60 + "\n")
 
-def promedio_goles_partido_condicion(promedio, p_loc, p_vis):
-    return promedio >= 2.2 and p_loc >= p_vis
-
-if __name__ == "__main__":
-    # Ejemplo de uso estricto con datos reales ingresados antes de apostar:
-    # Parámetros: (Local, Visitante, Cuota Local, Goles Local, Goles Visitante, Racha Local, Racha Visitante)
-    analizar_apuesta_real(
-        equipo_local="Grêmio", 
-        equipo_visitante="Bolívar", 
-        cuota_local=1.37, 
-        goles_historicos_local=1.2, 
-        goles_historicos_visitante=1.1, 
-        ultimos_resultados_local=["G", "P", "E", "G", "P"], 
-        ultimos_resultados_visitante=["G", "G", "P", "E", "G"]
-    )
+# Ejemplo evaluando un escenario real de riesgo (como el tropiezo que tuvimos)
+analizar_partido_seguro(
+    equipo_local="Grêmio", 
+    equipo_visitante="Bolívar", 
+    cuota_local=1.37, 
+    racha_local=["G", "P", "E", "G", "P"], 
+    racha_visitante=["G", "G", "P", "E", "G"], 
+    promedio_goles=2.1
+)

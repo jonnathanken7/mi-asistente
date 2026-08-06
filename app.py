@@ -11,7 +11,7 @@ st.set_page_config(
     layout="centered"
 )
 
-# 🔑 TU API KEY GUARDADA AUTOMÁTICAMENTE
+# 🔑 LEE LA CLAVE DESDE LOS SECRETS PROTEGIDOS DE STREAMLIT
 API_KEY_AUTOMATICA = st.secrets["API_KEY"]
 
 # Estilos CSS Limpios

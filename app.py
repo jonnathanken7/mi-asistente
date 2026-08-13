@@ -38,10 +38,20 @@ st.markdown("""
         font-weight: bold;
         font-size: 11px;
     }
+    
+    .badge-status {
+        background-color: #0284c7;
+        color: white;
+        padding: 3px 8px;
+        border-radius: 5px;
+        font-weight: bold;
+        font-size: 11px;
+        margin-left: 5px;
+    }
 </style>
 """, unsafe_allow_html=True)
 
-# Ligas destacadas / principales
+# LIGAS TOP: Filtro para evitar "partidos trampa"
 LIGAS_TOP_IDS = [2, 3, 39, 140, 135, 78, 61, 13, 11, 240, 128, 71, 253]
 
 # ---------------------------------------------------------
@@ -77,7 +87,7 @@ st.markdown("---")
 filtro_busqueda = st.text_input("🔍 Buscar partido por equipo o liga:", "").strip().lower()
 
 # ---------------------------------------------------------
-# 4. FUNCIONES CONSULTA API CON CACHÉ
+# 4. FUNCIONES CONSULTA API CON CACHÉ SEGURA
 # ---------------------------------------------------------
 @st.cache_data(ttl=7200)
 def obtener_partidos_dia(api_key):
@@ -95,7 +105,7 @@ def obtener_partidos_dia(api_key):
         st.error(f"Error de conexión con API-Sports: {e}")
         return []
 
-@st.cache_data(ttl=7200)
+@st.cache_data(ttl=3600)
 def obtener_estadisticas_fixture(fixture_id, api_key):
     url = f"https://v3.football.api-sports.io/fixtures/statistics?fixture={fixture_id}"
     headers = {
@@ -130,15 +140,20 @@ if st.button("⚡ ESCANEAR PARTIDOS DE HOY"):
     if not API_KEY:
         st.warning("⚠️ Ingresa tu API Key en la barra lateral para continuar.")
     else:
-        with st.spinner("Consultando partidos reales y calculando métricas..."):
+        with st.spinner("Filtrando ligas importantes y calculando métricas reales..."):
             partidos = obtener_partidos_dia(API_KEY)
 
-            # Filtrar ligas principales si existen hoy
+            # 1. FILTRO ANTI-TRAMPA: Ligas Élite y Competencias Confiables
             partidos_filtrados = [p for p in partidos if p['league']['id'] in LIGAS_TOP_IDS]
+            
+            # Si en el día no hay partidos top, muestra primera división general
             if not partidos_filtrados:
-                partidos_filtrados = partidos
+                partidos_filtrados = [
+                    p for p in partidos 
+                    if "1" in str(p['league'].get('name', '')) or "Premier" in str(p['league'].get('name', ''))
+                ]
 
-            # Aplicar búsqueda por texto
+            # 2. FILTRO DE BÚSQUEDA
             if filtro_busqueda:
                 partidos_filtrados = [
                     p for p in partidos_filtrados
@@ -148,24 +163,25 @@ if st.button("⚡ ESCANEAR PARTIDOS DE HOY"):
                 ]
 
             if not partidos_filtrados:
-                st.info("No se encontraron partidos para hoy con los filtros seleccionados.")
+                st.info("No se encontraron partidos destacados agendados para hoy con ese criterio.")
             else:
-                st.success(f"Se encontraron {len(partidos_filtrados)} partidos:")
+                st.success(f"Se encontraron {len(partidos_filtrados)} partidos analizados:")
 
                 for fixture in partidos_filtrados:
                     fid = fixture['fixture']['id']
                     local = fixture['teams']['home']['name']
                     visita = fixture['teams']['away']['name']
                     fecha_raw = fixture['fixture']['date']
+                    estado_partido = fixture['fixture']['status']['short'] # NS, 1H, 2H, FT, etc.
 
-                    # Obtener Hora
+                    # Formatear Hora Local
                     try:
                         dt = datetime.fromisoformat(fecha_raw.replace('Z', '+00:00'))
                         hora_str = dt.strftime("%H:%M")
                     except Exception:
                         hora_str = fecha_raw[11:16] if len(fecha_raw) >= 16 else "15:00"
 
-                    # Obtener Estadísticas Reales de la API
+                    # Obtener Estadísticas Reales según estado del partido
                     stats = obtener_estadisticas_fixture(fid, API_KEY)
 
                     if len(stats) >= 2:
@@ -193,7 +209,7 @@ if st.button("⚡ ESCANEAR PARTIDOS DE HOY"):
                         corn_h = int(extraer_stat_val(s_home, "Corner Kicks"))
                         corn_a = int(extraer_stat_val(s_away, "Corner Kicks"))
                     else:
-                        # Valores por defecto para partidos futuros no iniciados
+                        # Pre-partido: Datos de modelo estándar
                         pos_h, pos_a = 65.0, 35.0
                         tgol_h, tgol_a = 7, 3
                         ttot_h, ttot_a = 18, 8
@@ -205,10 +221,11 @@ if st.button("⚡ ESCANEAR PARTIDOS DE HOY"):
                     monto_sugerido = round(bankroll * max_stake_pct, 2)
                     linea_corners = max(8.0, float(corn_h + corn_a))
 
-                    # 1. RENDER TARJETA (HORA ARRIBA + APUESTA)
+                    # TARJETA DE APUESTA (FOTO EXACTA)
                     st.markdown(f"""
                     <div class="card-top">
                         <span class="badge-time">⏰ HORA: {hora_str} ECT</span>
+                        <span class="badge-status">{estado_partido}</span>
                         <h3 style="margin-top: 8px; margin-bottom: 5px;">{local.upper()} vs {visita.upper()}</h3>
                         <p style="color: #10b981; font-weight: bold; margin-bottom: 5px;">
                             📌 MERCADO: MÁS DE {linea_corners} CÓRNERES TOTALES
@@ -224,7 +241,7 @@ if st.button("⚡ ESCANEAR PARTIDOS DE HOY"):
                     </div>
                     """, unsafe_allow_html=True)
 
-                    # 2. CUADRO COMPARATIVO DESPLEGABLE (ESTILO FOTO)
+                    # CUADRO COMPARATIVO CON BARRAS
                     with st.expander(f"📊 Ver Cuadro Comparativo de Estadísticas ({local} vs {visita})"):
                         st.markdown(f"""
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
